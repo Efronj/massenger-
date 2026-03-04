@@ -1,60 +1,66 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Pizza, Instagram, Twitter, Facebook } from 'lucide-react';
+import { Twitter, Github, Instagram, Linkedin, Wand2 } from 'lucide-react';
 
 const Footer = () => {
-    return (
-        <footer style={{ background: 'var(--bg-secondary)', padding: '4rem 0 2rem', marginTop: '4rem', borderTop: '1px solid var(--border)' }}>
-            <div className="container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '3rem' }}>
-                <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontWeight: 800, fontSize: '1.5rem' }}>
-                        <Pizza color="var(--primary)" size={32} />
-                        <span className="gradient-text">SliceHub</span>
-                    </div>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-                        The best pizza in town, delivered fast to your doorstep. Experience the premium taste of SliceHub.
-                    </p>
-                    <div style={{ display: 'flex', gap: '1rem' }}>
-                        <a href="https://www.instagram.com/efron_joseph_/" target="_blank" rel="noopener noreferrer"><Instagram size={20} style={{ cursor: 'pointer', color: 'var(--text-secondary)' }} /></a>
-                        <Twitter size={20} style={{ cursor: 'pointer', color: 'var(--text-secondary)' }} />
-                        <Facebook size={20} style={{ cursor: 'pointer', color: 'var(--text-secondary)' }} />
-                    </div>
-                </div>
-
-                <div>
-                    <h4 style={{ marginBottom: '1.5rem' }}>Quick Links</h4>
-                    <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem', color: 'var(--text-secondary)' }}>
-                        <li><Link to="/">Home</Link></li>
-                        <li><Link to="/menu">Menu</Link></li>
-                        <li><Link to="/#offers">Offers</Link></li>
-                        <li><Link to="/admin">Admin Dashboard</Link></li>
-                    </ul>
-                </div>
-
-                <div>
-                    <h4 style={{ marginBottom: '1.5rem' }}>Legal</h4>
-                    <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem', color: 'var(--text-secondary)' }}>
-                        <li style={{ cursor: 'pointer' }}>Terms of Service</li>
-                        <li style={{ cursor: 'pointer' }}>Privacy Policy</li>
-                        <li style={{ cursor: 'pointer' }}>Cookie Policy</li>
-                    </ul>
-                </div>
-
-                <div>
-                    <h4 style={{ marginBottom: '1.5rem' }}>Contact</h4>
-                    <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem', color: 'var(--text-secondary)' }}>
-                        <li>123 Pizza Lane, Foodie City</li>
-                        <li>+1 (555) 123-4567</li>
-                        <li>hello@slicehub.com</li>
-                    </ul>
-                </div>
+  return (
+    <footer className="footer">
+      <div className="container footer-grid">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <div className="logo-icon text-white">
+              <Wand2 size={18} />
             </div>
-            <div className="container" style={{ marginTop: '4rem', paddingTop: '2rem', borderTop: '1px solid var(--border)', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                <p>© {new Date().getFullYear()} SliceHub. All rights reserved.</p>
-                <p style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>Made with <span style={{ color: 'var(--primary)' }}>❤️</span> by <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Efron</span></p>
-            </div>
-        </footer>
-    );
+            <span className="text-lg font-bold text-gradient">Background Remover</span>
+          </div>
+          <p className="text-sm text-secondary" style={{ lineHeight: 1.625 }}>
+            Instantly remove backgrounds from your images using powerful AI tools, all directly in your browser.
+          </p>
+        </div>
+
+        <div>
+          <h4 className="font-semibold text-primary mb-8" style={{ marginBottom: '1rem' }}>Product</h4>
+          <ul className="flex flex-col gap-2 text-sm text-secondary" style={{ padding: 0 }}>
+            <li><a href="#" className="hover-link">Features</a></li>
+            <li><a href="#" className="hover-link">Pricing</a></li>
+            <li><a href="#" className="hover-link">API</a></li>
+            <li><a href="#" className="hover-link">Integrations</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 className="font-semibold text-primary mb-8" style={{ marginBottom: '1rem' }}>Resources</h4>
+          <ul className="flex flex-col gap-2 text-sm text-secondary" style={{ padding: 0 }}>
+            <li><a href="#" className="hover-link">Help Center</a></li>
+            <li><a href="#" className="hover-link">Blog</a></li>
+            <li><a href="#" className="hover-link">Tutorials</a></li>
+            <li><a href="#" className="hover-link">Community</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 className="font-semibold text-primary mb-8" style={{ marginBottom: '1rem' }}>Connect</h4>
+          <div className="flex items-center gap-4">
+            <a href="#" className="text-secondary hover-link"><Twitter size={20} /></a>
+            <a href="#" className="text-secondary hover-link"><Github size={20} /></a>
+            <a href="#" className="text-secondary hover-link"><Instagram size={20} /></a>
+            <a href="#" className="text-secondary hover-link"><Linkedin size={20} /></a>
+          </div>
+        </div>
+      </div>
+
+      <div className="container">
+        <div className="footer-bottom text-sm text-secondary" style={{ flexDirection: 'column', gap: '1rem', justifyContent: 'center' }}>
+          <div className="flex items-center gap-4">
+            <a href="#" className="hover-link">Privacy Policy</a>
+            <a href="#" className="hover-link">Terms of Service</a>
+          </div>
+          <p style={{ textAlign: 'center' }}>
+            © {new Date().getFullYear()} Background Remover. Made by <span className="font-bold text-gradient" style={{ fontSize: '1.2em' }}>Efron</span>. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </footer>
+  );
 };
 
 export default Footer;
