@@ -169,6 +169,13 @@ app.get('/api/messages/:userId/:otherId', (req, res) => {
 // ─── WebSocket: Real-time Chat + WebRTC Signaling ────────────────────────────
 const clients = new Map(); // userId -> ws
 
+function broadcast(userId, data) {
+  const client = clients.get(userId);
+  if (client && client.readyState === 1) {
+    client.send(JSON.stringify(data));
+  }
+}
+
 wss.on('connection', (ws) => {
   let myUserId = null;
 
@@ -200,7 +207,7 @@ wss.on('connection', (ws) => {
       broadcast(data.from, { type: 'message_sent', msg });
       
       // If target user is offline, send push
-      if (!clients.has(data.to)) {
+      if (!clients.has(data.to) && sender) {
         sendPush(data.to, {
           title: `Message from ${sender.displayName}`,
           body: data.text,
