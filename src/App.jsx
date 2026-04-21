@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   MessageSquare, Search, Phone, Video, MoreVertical, Mic, MicOff,
-  VideoOff, Video as VideoIcon, Monitor, PhoneOff, Send, X, LogOut, Trash2,
+  VideoOff, Video as VideoIcon, Monitor, PhoneOff, Send, X, LogOut,
   PhoneIncoming, Check, CheckCheck, Loader2, ChevronLeft, Settings, User, Image, Camera
 } from 'lucide-react';
 
