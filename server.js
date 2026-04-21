@@ -80,6 +80,28 @@ app.get('/api/users/search', (req, res) => {
   res.json(results);
 });
 
+// ─── User Profile Endpoints ──────────────────────────────────────────────────
+app.get('/api/user/:id', (req, res) => {
+  const db = loadDB();
+  const user = db.users.find(u => u.id === req.params.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  const { password, ...safeUser } = user;
+  res.json(safeUser);
+});
+
+app.put('/api/user/profile', (req, res) => {
+  const { id, displayName, avatar } = req.body;
+  const db = loadDB();
+  const index = db.users.findIndex(u => u.id === id);
+  if (index === -1) return res.status(404).json({ error: 'User not found' });
+
+  db.users[index] = { ...db.users[index], displayName, avatar };
+  saveDB(db);
+
+  const { password, ...safeUser } = db.users[index];
+  res.json(safeUser);
+});
+
 // ─── Messages Endpoints ───────────────────────────────────────────────────────
 app.get('/api/messages/:userId/:otherId', (req, res) => {
   const { userId, otherId } = req.params;

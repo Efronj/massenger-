@@ -2,12 +2,23 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   MessageSquare, Search, Phone, Video, MoreVertical, Mic, MicOff,
   VideoOff, Video as VideoIcon, MonitorUp, PhoneOff, Send, X, LogOut,
-  PhoneIncoming, Check, CheckCheck, Loader
+  PhoneIncoming, Check, CheckCheck, Loader, ChevronLeft, Settings, User, Image, Camera
 } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:4000';
 
+// ─── Constants ──────────────────────────────────────────────────────────────
+const DEFAULT_AVATARS = [
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Jasper',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Milo',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Luna',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Buster',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Kitty',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Pepper'
+];
 
 // ─── Utilities ──────────────────────────────────────────────────────────────
 function timeStr(ts) {
@@ -22,17 +33,9 @@ function dateStr(ts) {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
 }
 function getInitial(name) { return name ? name[0].toUpperCase() : '?'; }
-function avatarStyle(url, color) {
-  return url
-    ? { backgroundImage: `url(${url})` }
-    : { backgroundColor: color || '#00a884' };
-}
-
-// Stable avatar color from name
 const colors = ['#00a884','#1877f2','#e53935','#7b1fa2','#f57c00','#00838f'];
 function colorFor(name) { return colors[(name?.charCodeAt(0) || 0) % colors.length]; }
 
-// ─── WebRTC config ───────────────────────────────────────────────────────────
 const RTC_CONFIG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -41,8 +44,9 @@ const RTC_CONFIG = {
 };
 
 // ════════════════════════════════════════════════════════════════════════════
-//  AUTH SCREEN
+//  COMPONENTS
 // ════════════════════════════════════════════════════════════════════════════
+
 function AuthScreen({ onAuth }) {
   const [tab, setTab] = useState('login');
   const [form, setForm] = useState({ username: '', password: '', displayName: '' });
@@ -75,201 +79,205 @@ function AuthScreen({ onAuth }) {
     <div className="auth-screen">
       <div className="auth-card">
         <div className="auth-logo">
-          <div className="auth-logo-icon">
-            <MessageSquare size={28} color="white" />
-          </div>
+          <div className="auth-logo-icon"><MessageSquare size={28} color="white" /></div>
           <h1>Massenger</h1>
         </div>
-
         <div className="auth-tabs">
-          <button className={`auth-tab ${tab === 'login' ? 'active' : ''}`} onClick={() => { setTab('login'); setError(''); }}>Sign In</button>
-          <button className={`auth-tab ${tab === 'register' ? 'active' : ''}`} onClick={() => { setTab('register'); setError(''); }}>Create Account</button>
+          <button className={`auth-tab ${tab === 'login' ? 'active' : ''}`} onClick={() => setTab('login')}>Sign In</button>
+          <button className={`auth-tab ${tab === 'register' ? 'active' : ''}`} onClick={() => setTab('register')}>Register</button>
         </div>
-
         {error && <div className="auth-error">{error}</div>}
-
         <form onSubmit={submit}>
           {tab === 'register' && (
             <div className="auth-field">
-              <label>Display Name</label>
-              <input placeholder="Your name" value={form.displayName} onChange={e => set('displayName', e.target.value)} />
+              <label>Your Name</label>
+              <input placeholder="Full Name" value={form.displayName} onChange={e => set('displayName', e.target.value)} />
             </div>
           )}
           <div className="auth-field">
             <label>Username</label>
-            <input placeholder="e.g. john_doe" value={form.username} onChange={e => set('username', e.target.value)} required />
+            <input placeholder="Username" value={form.username} onChange={e => set('username', e.target.value)} required />
           </div>
           <div className="auth-field">
             <label>Password</label>
             <input type="password" placeholder="••••••••" value={form.password} onChange={e => set('password', e.target.value)} required />
           </div>
-          <button type="submit" className="auth-submit" disabled={loading}>
-            {loading ? 'Please wait…' : tab === 'login' ? 'Sign In' : 'Create Account'}
-          </button>
+          <button type="submit" className="auth-submit" disabled={loading}>{loading ? 'Wait…' : tab === 'login' ? 'Sign In' : 'Create Account'}</button>
         </form>
       </div>
     </div>
   );
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-//  VIDEO CALL OVERLAY
-// ════════════════════════════════════════════════════════════════════════════
-function CallOverlay({ me, peer, wsRef, callType, onEnd, isIncoming, remoteStream }) {
+function ProfileSettings({ user, onClose, onUpdate }) {
+  const [displayName, setDisplayName] = useState(user.displayName);
+  const [avatar, setAvatar] = useState(user.avatar);
+  const [loading, setLoading] = useState(false);
+
+  const save = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/api/user/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: user.id, displayName, avatar })
+      });
+      const updated = await res.json();
+      onUpdate(updated);
+      onClose();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-card">
+        <div className="modal-header">
+          <h2>Profile Settings</h2>
+          <button onClick={onClose}><X size={20} /></button>
+        </div>
+        <div className="modal-body">
+          <div className="profile-avatar-edit">
+            <div className="avatar-img" style={{ backgroundImage: `url(${avatar})`, backgroundColor: colorFor(displayName) }}>
+              {!avatar && getInitial(displayName)}
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Choose an avatar</p>
+            <div className="avatar-selector">
+              {DEFAULT_AVATARS.map(url => (
+                <div 
+                  key={url} 
+                  className={`avatar-option ${avatar === url ? 'active' : ''}`}
+                  style={{ backgroundImage: `url(${url})` }}
+                  onClick={() => setAvatar(url)}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="settings-field">
+            <label>Display Name</label>
+            <input value={displayName} onChange={e => setDisplayName(e.target.value)} />
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn-cancel" onClick={onClose}>Cancel</button>
+          <button className="btn-save" onClick={save} disabled={loading}>{loading ? 'Saving...' : 'Save Changes'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Video Call Overlay Component ───
+function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming, initialRemoteStream }) {
   const localRef = useRef(null);
   const remoteRef = useRef(null);
   const pcRef = useRef(null);
   const localStreamRef = useRef(null);
-
+  
+  const [connected, setConnected] = useState(false);
   const [muted, setMuted] = useState(false);
   const [videoOff, setVideoOff] = useState(callType === 'audio');
   const [sharing, setSharing] = useState(false);
-  const [callDuration, setCallDuration] = useState(0);
-  const [connected, setConnected] = useState(false);
-  const timerRef = useRef(null);
+  const [duration, setDuration] = useState(0);
 
-  // Stream remote video whenever remoteStream changes
   useEffect(() => {
-    if (remoteRef.current && remoteStream) {
-      remoteRef.current.srcObject = remoteStream;
-      setConnected(true);
-    }
-  }, [remoteStream]);
+    let t;
+    if (connected) t = setInterval(() => setDuration(d => d + 1), 1000);
+    return () => clearInterval(t);
+  }, [connected]);
 
-  // Setup local stream + PeerConnection
-  useEffect(() => {
-    async function init() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: callType === 'video',
-          audio: true
-        });
-        localStreamRef.current = stream;
-        if (localRef.current) localRef.current.srcObject = stream;
+  const init = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: callType === 'video',
+        audio: true
+      });
+      localStreamRef.current = stream;
+      if (localRef.current) localRef.current.srcObject = stream;
 
-        const pc = new RTCPeerConnection(RTC_CONFIG);
-        pcRef.current = pc;
+      const pc = new RTCPeerConnection(RTC_CONFIG);
+      pcRef.current = pc;
+      wsRef.current._pc = pc;
 
-        stream.getTracks().forEach(t => pc.addTrack(t, stream));
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
-        pc.ontrack = (e) => {
-          if (remoteRef.current && e.streams[0]) {
-            remoteRef.current.srcObject = e.streams[0];
-            setConnected(true);
-          }
-        };
-
-        pc.onicecandidate = (e) => {
-          if (e.candidate && wsRef.current?.readyState === 1) {
-            wsRef.current.send(JSON.stringify({
-              type: 'ice-candidate',
-              to: peer.id,
-              candidate: e.candidate
-            }));
-          }
-        };
-
-        if (!isIncoming) {
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          wsRef.current?.send(JSON.stringify({ type: 'offer', to: peer.id, offer, callType }));
+      pc.ontrack = (e) => {
+        if (remoteRef.current && e.streams[0]) {
+          remoteRef.current.srcObject = e.streams[0];
+          setConnected(true);
         }
+      };
 
-        // Expose pc to external answer/ice events
-        wsRef.current._pc = pc;
-      } catch (err) {
-        console.error('Media error:', err);
+      pc.onicecandidate = (e) => {
+        if (e.candidate) {
+          wsRef.current?.send(JSON.stringify({ type: 'ice-candidate', to: peer.id, candidate: e.candidate }));
+        }
+      };
+
+      if (!isIncoming) {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        wsRef.current?.send(JSON.stringify({ type: 'offer', to: peer.id, offer, callType }));
       }
-    }
-    init();
+    } catch (err) { console.error(err); }
+  };
 
+  useEffect(() => {
+    init();
     return () => {
       localStreamRef.current?.getTracks().forEach(t => t.stop());
       pcRef.current?.close();
-      clearInterval(timerRef.current);
-      delete wsRef.current?._pc;
+      delete wsRef.current._pc;
     };
   }, []);
 
-  // Duration timer
-  useEffect(() => {
-    if (connected) {
-      timerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000);
-    }
-    return () => clearInterval(timerRef.current);
-  }, [connected]);
+  const end = () => {
+    wsRef.current?.send(JSON.stringify({ type: 'call-end', to: peer.id }));
+    onEnd();
+  };
 
-  const durationStr = () => {
-    const m = String(Math.floor(callDuration / 60)).padStart(2, '0');
-    const s = String(callDuration % 60).padStart(2, '0');
+  const durStr = () => {
+    const m = String(Math.floor(duration/60)).padStart(2,'0');
+    const s = String(duration%60).padStart(2,'0');
     return `${m}:${s}`;
-  };
-
-  const toggleMute = () => {
-    setMuted(m => {
-      localStreamRef.current?.getAudioTracks().forEach(t => t.enabled = m);
-      return !m;
-    });
-  };
-
-  const toggleVideo = () => {
-    setVideoOff(v => {
-      localStreamRef.current?.getVideoTracks().forEach(t => t.enabled = v);
-      return !v;
-    });
   };
 
   const toggleScreen = async () => {
     if (sharing) {
-      // Revert to camera
-      const camStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      const track = camStream.getVideoTracks()[0];
-      const sender = pcRef.current?.getSenders().find(s => s.track?.kind === 'video');
-      sender?.replaceTrack(track);
-      if (localRef.current) localRef.current.srcObject = camStream;
+      const cam = await navigator.mediaDevices.getUserMedia({ video: true });
+      const track = cam.getVideoTracks()[0];
+      const s = pcRef.current.getSenders().find(s => s.track.kind === 'video');
+      s.replaceTrack(track);
+      localRef.current.srcObject = cam;
       setSharing(false);
     } else {
-      try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        const track = screenStream.getVideoTracks()[0];
-        const sender = pcRef.current?.getSenders().find(s => s.track?.kind === 'video');
-        sender?.replaceTrack(track);
-        if (localRef.current) localRef.current.srcObject = screenStream;
-        track.onended = () => toggleScreen();
-        setSharing(true);
-      } catch (err) {
-        console.error('Screen share denied', err);
-      }
+      const scr = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const track = scr.getVideoTracks()[0];
+      const s = pcRef.current.getSenders().find(s => s.track.kind === 'video');
+      s.replaceTrack(track);
+      localRef.current.srcObject = scr;
+      track.onended = toggleScreen;
+      setSharing(true);
     }
-  };
-
-  const endCall = () => {
-    wsRef.current?.send(JSON.stringify({ type: 'call-end', to: peer.id }));
-    onEnd();
   };
 
   return (
     <div className="call-overlay">
       <div className="call-stage">
-        {/* Remote Video */}
         <div className="remote-video">
-          <video ref={remoteRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: connected ? 'block' : 'none' }} />
+          <video ref={remoteRef} autoPlay playsInline style={{ display: connected ? 'block' : 'none' }} />
           {!connected && (
             <div className="remote-placeholder">
               <div className="big-avatar" style={{ backgroundImage: `url(${peer.avatar})`, backgroundColor: colorFor(peer.displayName) }} />
               <h3>{peer.displayName}</h3>
-              <p>{isIncoming ? 'Connecting…' : 'Ringing…'}</p>
+              <p>{isIncoming ? 'Connecting...' : 'Calling...'}</p>
             </div>
           )}
         </div>
-
-        {/* Call Info */}
-        <div className="call-info-bar">
-          <h2>{peer.displayName}</h2>
-          <p>{connected ? durationStr() : (isIncoming ? 'Connecting…' : 'Calling…')}</p>
-        </div>
-
-        {/* Local PiP */}
+        <div className="call-info-bar"><h2>{peer.displayName}</h2><p>{connected ? durStr() : 'Connecting...'}</p></div>
         {callType === 'video' && (
           <div className="local-video-pip">
             <video ref={localRef} autoPlay playsInline muted style={{ display: videoOff ? 'none' : 'block' }} />
@@ -277,38 +285,19 @@ function CallOverlay({ me, peer, wsRef, callType, onEnd, isIncoming, remoteStrea
           </div>
         )}
       </div>
-
-      {/* Controls */}
       <div className="call-controls-bar">
-        <button className="cc-btn" onClick={toggleMute}>
-          <div className={`cc-btn-circle ${muted ? 'muted' : ''}`}>
-            {muted ? <MicOff size={22} /> : <Mic size={22} />}
-          </div>
-          <span>{muted ? 'Unmute' : 'Mute'}</span>
+        <button className="cc-btn" onClick={() => { setMuted(!muted); localStreamRef.current.getAudioTracks()[0].enabled = muted; }}>
+          <div className={`cc-btn-circle ${muted ? 'muted' : ''}`}>{muted ? <MicOff /> : <Mic />}</div>
         </button>
-
         {callType === 'video' && (
-          <button className="cc-btn" onClick={toggleVideo}>
-            <div className={`cc-btn-circle ${videoOff ? 'muted' : ''}`}>
-              {videoOff ? <VideoOff size={22} /> : <VideoIcon size={22} />}
-            </div>
-            <span>{videoOff ? 'Start Video' : 'Stop Video'}</span>
+          <button className="cc-btn" onClick={() => { setVideoOff(!videoOff); localStreamRef.current.getVideoTracks()[0].enabled = videoOff; }}>
+            <div className={`cc-btn-circle ${videoOff ? 'muted' : ''}`}>{videoOff ? <VideoOff /> : <VideoIcon />}</div>
           </button>
         )}
-
         {callType === 'video' && (
-          <button className="cc-btn" onClick={toggleScreen}>
-            <div className={`cc-btn-circle ${sharing ? 'muted' : ''}`}>
-              <MonitorUp size={22} />
-            </div>
-            <span>{sharing ? 'Stop Share' : 'Share Screen'}</span>
-          </button>
+          <button className="cc-btn" onClick={toggleScreen}><div className={`cc-btn-circle ${sharing ? 'muted' : ''}`}><MonitorUp /></div></button>
         )}
-
-        <button className="cc-btn" onClick={endCall}>
-          <div className="cc-btn-circle end"><PhoneOff size={22} /></div>
-          <span>End</span>
-        </button>
+        <button className="cc-btn" onClick={end}><div className="cc-btn-circle end"><PhoneOff /></div></button>
       </div>
     </div>
   );
@@ -318,63 +307,53 @@ function CallOverlay({ me, peer, wsRef, callType, onEnd, isIncoming, remoteStrea
 //  MAIN APP
 // ════════════════════════════════════════════════════════════════════════════
 function App() {
-  const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('massenger_user')); } catch { return null; }
-  });
-  const [token, setToken] = useState(() => localStorage.getItem('massenger_token'));
-
-  // Chat state
-  const [contacts, setContacts] = useState([]); // recent chats
+  const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('m_user')));
+  const [token, setToken] = useState(() => localStorage.getItem('m_token'));
+  
+  const [contacts, setContacts] = useState([]);
   const [activePeer, setActivePeer] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [msgInput, setMsgInput] = useState('');
   const [onlineUsers, setOnlineUsers] = useState(new Set());
-
-  // Search
-  const [searchQuery, setSearchQuery] = useState('');
+  
+  const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
-
-  // Call state
-  const [activeCall, setActiveCall] = useState(null); // { peer, callType, isIncoming }
+  
+  const [activeCall, setActiveCall] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
-  const [remoteStream, setRemoteStream] = useState(null);
-
+  const [showSettings, setShowSettings] = useState(false);
+  const [msgInput, setMsgInput] = useState('');
+  
+  // Mobile UI
+  const [view, setView] = useState('list'); // 'list' or 'chat'
+  
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
 
-  const scrollBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  useEffect(() => { scrollBottom(); }, [messages]);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  // ── Auth handlers ──
-  const handleAuth = (u, t) => {
+  const onAuth = (u, t) => {
     setUser(u); setToken(t);
-    localStorage.setItem('massenger_user', JSON.stringify(u));
-    localStorage.setItem('massenger_token', t);
+    localStorage.setItem('m_user', JSON.stringify(u));
+    localStorage.setItem('m_token', t);
   };
 
   const logout = () => {
-    setUser(null); setToken(null);
-    localStorage.removeItem('massenger_user');
-    localStorage.removeItem('massenger_token');
+    localStorage.clear();
+    setUser(null);
     wsRef.current?.close();
   };
 
-  // ── WebSocket setup ──
+  // ── WS Setup ──
   useEffect(() => {
     if (!user) return;
-
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
-
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ type: 'register', userId: user.id }));
-    };
-
+    ws.onopen = () => ws.send(JSON.stringify({ type: 'register', userId: user.id }));
+    
     ws.onmessage = async (e) => {
       const data = JSON.parse(e.data);
-
+      
       if (data.type === 'presence') {
         setOnlineUsers(prev => {
           const next = new Set(prev);
@@ -383,270 +362,142 @@ function App() {
         });
       }
 
-      if (data.type === 'message') {
+      if (data.type === 'message' || data.type === 'message_sent') {
         const msg = data.msg;
-        setMessages(prev => {
-          // Only add if it's in the current conversation
-          if (prev.length === 0) return prev;
-          const firstMsg = prev[0];
-          const isPart = (firstMsg.from === msg.from && firstMsg.to === msg.to) ||
-                         (firstMsg.from === msg.to && firstMsg.to === msg.from);
-          if (isPart) return [...prev, msg];
+        const otherId = data.type === 'message' ? msg.from : msg.to;
+        
+        // Auto add to contacts if not there
+        setContacts(prev => {
+          if (prev.find(c => c.id === otherId)) return prev;
+          // Fetch user info to add correctly
+          fetch(`${API}/api/user/${otherId}`).then(r => r.json()).then(u => {
+             setContacts(p => [u, ...p]);
+          });
           return prev;
         });
-        // Update contacts preview
+
+        if (activePeer?.id === otherId) {
+          setMessages(prev => [...prev, msg]);
+        }
+        
         setContacts(prev => {
-          const updated = [...prev];
-          const idx = updated.findIndex(c => c.id === msg.from);
-          if (idx >= 0) {
-            updated[idx] = { ...updated[idx], lastMsg: msg.text, lastTime: msg.timestamp };
+          const arr = [...prev];
+          const idx = arr.findIndex(c => c.id === otherId);
+          if (idx !== -1) {
+            arr[idx] = { ...arr[idx], lastMsg: msg.text, lastTime: msg.timestamp };
+            // Move to top
+            const itm = arr.splice(idx, 1)[0];
+            arr.unshift(itm);
           }
-          return updated;
+          return arr;
         });
       }
 
-      if (data.type === 'message_sent') {
-        const msg = data.msg;
-        setMessages(prev => [...prev, msg]);
-        setContacts(prev => {
-          const updated = [...prev];
-          const idx = updated.findIndex(c => c.id === msg.to);
-          if (idx >= 0) {
-            updated[idx] = { ...updated[idx], lastMsg: msg.text, lastTime: msg.timestamp };
-          }
-          return updated;
-        });
+      // Signaling
+      if (data.type === 'call-request') setIncomingCall(data);
+      if (data.type === 'call-decline' || data.type === 'call-end') { setActiveCall(null); setIncomingCall(null); }
+      if (data.type === 'offer' && ws._pc) {
+        await ws._pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        const ans = await ws._pc.createAnswer();
+        await ws._pc.setLocalDescription(ans);
+        ws.send(JSON.stringify({ type: 'answer', to: data.from, answer: ans }));
       }
-
-      // ── WebRTC signaling ──
-      if (data.type === 'call-request') {
-        setIncomingCall({ peer: data.callerInfo, callType: data.callType });
-      }
-
-      if (data.type === 'call-decline') {
-        setActiveCall(null);
-      }
-
-      if (data.type === 'offer') {
-        // We received an offer — we are answering
-        if (ws._pc) {
-          await ws._pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-          const answer = await ws._pc.createAnswer();
-          await ws._pc.setLocalDescription(answer);
-          ws.send(JSON.stringify({ type: 'answer', to: data.from, answer }));
-        }
-      }
-
-      if (data.type === 'answer') {
-        if (ws._pc) {
-          await ws._pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-        }
-      }
-
-      if (data.type === 'ice-candidate') {
-        if (ws._pc) {
-          try { await ws._pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch {}
-        }
-      }
-
-      if (data.type === 'call-end') {
-        setActiveCall(null);
-        setIncomingCall(null);
-      }
+      if (data.type === 'answer' && ws._pc) await ws._pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+      if (data.type === 'ice-candidate' && ws._pc) try { await ws._pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch {}
     };
 
-    ws.onerror = () => console.error('WS error');
-    ws.onclose = () => console.log('WS closed');
-
     return () => ws.close();
-  }, [user]);
+  }, [user, activePeer]);
 
   // ── Search ──
   useEffect(() => {
-    if (!searchQuery.trim() || !user) { setSearchResults([]); return; }
-    const timer = setTimeout(async () => {
+    if (!search.trim()) return setSearchResults([]);
+    const t = setTimeout(async () => {
       setIsSearching(true);
-      try {
-        const res = await fetch(`${API}/api/users/search?q=${encodeURIComponent(searchQuery)}&myId=${user.id}`);
-        const data = await res.json();
-        setSearchResults(data);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [searchQuery, user]);
+      const res = await fetch(`${API}/api/users/search?q=${search}&myId=${user.id}`);
+      const d = await res.json();
+      setSearchResults(d);
+      setIsSearching(false);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  // ── Load messages when chat changes ──
   const openChat = async (peer) => {
     setActivePeer(peer);
-    setSearchQuery('');
-    setSearchResults([]);
-    // Add to contacts if not already there
-    setContacts(prev => {
-      if (prev.find(c => c.id === peer.id)) return prev;
-      return [peer, ...prev];
-    });
-    // Fetch history
+    setView('chat');
+    setSearch('');
+    // Ensure in contacts
+    setContacts(prev => prev.find(c => c.id === peer.id) ? prev : [peer, ...prev]);
     const res = await fetch(`${API}/api/messages/${user.id}/${peer.id}`);
-    const data = await res.json();
-    setMessages(data);
+    const msgs = await res.json();
+    setMessages(msgs);
   };
 
-  // ── Send message ──
-  const sendMsg = (e) => {
+  const send = (e) => {
     e?.preventDefault();
-    if (!msgInput.trim() || !activePeer || !wsRef.current) return;
-    wsRef.current.send(JSON.stringify({
-      type: 'message',
-      from: user.id,
-      to: activePeer.id,
-      text: msgInput.trim()
-    }));
+    if (!msgInput.trim()) return;
+    wsRef.current.send(JSON.stringify({ type: 'message', from: user.id, to: activePeer.id, text: msgInput }));
     setMsgInput('');
-    inputRef.current?.focus();
   };
 
-  // ── Start call ──
-  const startCall = (type) => {
-    if (!activePeer) return;
-    wsRef.current?.send(JSON.stringify({
-      type: 'call-request',
-      to: activePeer.id,
-      callerInfo: { id: user.id, displayName: user.displayName, avatar: user.avatar },
-      callType: type
-    }));
-    setActiveCall({ peer: activePeer, callType: type, isIncoming: false });
-  };
-
-  // ── Accept / Reject incoming call ──
-  const acceptCall = () => {
-    setActiveCall({ peer: incomingCall.peer, callType: incomingCall.callType, isIncoming: true });
-    setIncomingCall(null);
-  };
-
-  const rejectCall = () => {
-    wsRef.current?.send(JSON.stringify({ type: 'call-decline', to: incomingCall.peer.id }));
-    setIncomingCall(null);
-  };
-
-  // ── Group messages by date ──
-  const groupedMessages = messages.reduce((acc, msg) => {
-    const key = dateStr(msg.timestamp);
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(msg);
-    return acc;
-  }, {});
-
-  if (!user) return <AuthScreen onAuth={handleAuth} />;
+  if (!user) return <AuthScreen onAuth={onAuth} />;
 
   return (
     <div className="app-layout">
-      {/* ── Incoming Call Modal ── */}
+      {/* Modals */}
+      {showSettings && <ProfileSettings user={user} onClose={() => setShowSettings(false)} onUpdate={u => { setUser(u); localStorage.setItem('m_user', JSON.stringify(u)); }} />}
+      
       {incomingCall && (
         <div className="incoming-call-modal">
-          <div className="avatar-img" style={{ width: 48, height: 48, fontSize: 18, backgroundImage: `url(${incomingCall.peer.avatar})`, backgroundColor: colorFor(incomingCall.peer.displayName) }}>
-            {!incomingCall.peer.avatar && getInitial(incomingCall.peer.displayName)}
-          </div>
-          <div className="incoming-info">
-            <h3>{incomingCall.peer.displayName}</h3>
-            <p>Incoming {incomingCall.callType} call…</p>
-          </div>
+          <div className="avatar-img" style={{ width: 44, height: 44, backgroundImage: `url(${incomingCall.callerInfo.avatar})`, backgroundColor: colorFor(incomingCall.callerInfo.displayName) }} />
+          <div className="incoming-info"><h3>{incomingCall.callerInfo.displayName}</h3><p>Incoming {incomingCall.callType} call...</p></div>
           <div className="incoming-actions">
-            <button className="reject-btn" onClick={rejectCall}><PhoneOff size={18} /></button>
-            <button className="accept-btn" onClick={acceptCall}>
-              {incomingCall.callType === 'video' ? <VideoIcon size={18} /> : <Phone size={18} />}
-            </button>
+            <button className="reject-btn" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-decline', to: incomingCall.callerInfo.id })); setIncomingCall(null); }}><X /></button>
+            <button className="accept-btn" onClick={() => { setActiveCall({ peer: incomingCall.callerInfo, callType: incomingCall.callType, isIncoming: true }); setIncomingCall(null); }}><Phone /></button>
           </div>
         </div>
       )}
 
-      {/* ── Active Call Overlay ── */}
-      {activeCall && (
-        <CallOverlay
-          me={user}
-          peer={activeCall.peer}
-          wsRef={wsRef}
-          callType={activeCall.callType}
-          isIncoming={activeCall.isIncoming}
-          remoteStream={remoteStream}
-          onEnd={() => setActiveCall(null)}
-        />
-      )}
+      {activeCall && <CallOverlay peer={activeCall.peer} callType={activeCall.callType} wsRef={wsRef} isIncoming={activeCall.isIncoming} onEnd={() => setActiveCall(null)} />}
 
-      {/* ── SIDEBAR ── */}
-      <div className="sidebar">
+      {/* Sidebar */}
+      <div className={`sidebar ${view === 'chat' ? 'hidden' : ''}`}>
         <div className="sidebar-top">
-          <div className="sidebar-top-user">
+          <div className="sidebar-top-user" onClick={() => setShowSettings(true)}>
             <div className="avatar-img" style={{ width: 38, height: 38, fontSize: 16, backgroundImage: `url(${user.avatar})`, backgroundColor: colorFor(user.displayName) }}>
               {!user.avatar && getInitial(user.displayName)}
             </div>
-            <span style={{ fontWeight: 600, fontSize: 16 }}>{user.displayName}</span>
+            <span style={{ fontWeight: 600 }}>{user.displayName}</span>
           </div>
           <div className="sidebar-top-actions">
-            <button className="icon-btn" title="Logout" onClick={logout}><LogOut size={18} /></button>
+            <button className="icon-btn" onClick={() => setShowSettings(true)}><Settings size={18} /></button>
+            <button className="icon-btn" onClick={logout}><LogOut size={18} /></button>
           </div>
         </div>
-
-        {/* Search */}
         <div className="search-bar">
           <div className="search-inner">
-            {isSearching ? <Loader size={16} color="var(--text-muted)" style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={16} color="var(--text-muted)" />}
-            <input
-              placeholder="Search by username…"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && <button onClick={() => setSearchQuery('')}><X size={14} color="var(--text-muted)" /></button>}
+            {isSearching ? <Loader size={16} className="spin" /> : <Search size={16} />}
+            <input placeholder="Search username..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
         </div>
-
         <div className="contact-list">
-          {/* Search Results */}
-          {searchQuery && (
-            <>
-              <div className="search-results-section">People</div>
-              {searchResults.length === 0 && !isSearching && <div className="no-results">No users found</div>}
-              {searchResults.map(u => (
-                <div key={u.id} className={`contact-item ${activePeer?.id === u.id ? 'active' : ''}`} onClick={() => openChat(u)}>
-                  <div className="contact-avatar">
-                    <div className="avatar-img" style={{ backgroundImage: `url(${u.avatar})`, backgroundColor: colorFor(u.displayName) }}>
-                      {!u.avatar && getInitial(u.displayName)}
-                    </div>
-                    {onlineUsers.has(u.id) && <div className="online-dot" />}
-                  </div>
-                  <div className="contact-info">
-                    <div className="contact-row1">
-                      <div className="contact-name">{u.displayName}</div>
-                    </div>
-                    <div className="contact-preview">@{u.username}</div>
-                  </div>
-                </div>
-              ))}
-              <div className="search-results-section" style={{ marginTop: 8 }}>Recent</div>
-            </>
-          )}
-
-          {/* Recent Chats */}
-          {contacts.length === 0 && !searchQuery && (
-            <div className="no-results" style={{ marginTop: 40 }}>
-              <Search size={32} style={{ margin: '0 auto 12px', display: 'block', opacity: 0.3 }} />
-              Search for a username to start chatting
+          {search && searchResults.map(u => (
+            <div key={u.id} className="contact-item" onClick={() => openChat(u)}>
+              <div className="contact-avatar">
+                <div className="avatar-img" style={{ backgroundImage: `url(${u.avatar})`, backgroundColor: colorFor(u.displayName) }}>{!u.avatar && getInitial(u.displayName)}</div>
+                {onlineUsers.has(u.id) && <div className="online-dot" />}
+              </div>
+              <div className="contact-info"><div className="contact-name">{u.displayName}</div><div className="contact-preview">@{u.username}</div></div>
             </div>
-          )}
-          {contacts.map(c => (
+          ))}
+          {!search && contacts.map(c => (
             <div key={c.id} className={`contact-item ${activePeer?.id === c.id ? 'active' : ''}`} onClick={() => openChat(c)}>
               <div className="contact-avatar">
-                <div className="avatar-img" style={{ backgroundImage: `url(${c.avatar})`, backgroundColor: colorFor(c.displayName) }}>
-                  {!c.avatar && getInitial(c.displayName)}
-                </div>
+                <div className="avatar-img" style={{ backgroundImage: `url(${c.avatar})`, backgroundColor: colorFor(c.displayName) }}>{!c.avatar && getInitial(c.displayName)}</div>
                 {onlineUsers.has(c.id) && <div className="online-dot" />}
               </div>
               <div className="contact-info">
-                <div className="contact-row1">
-                  <div className="contact-name">{c.displayName}</div>
-                  {c.lastTime && <div className="contact-time">{timeStr(c.lastTime)}</div>}
-                </div>
+                <div className="contact-row1"><div className="contact-name">{c.displayName}</div>{c.lastTime && <div className="contact-time">{timeStr(c.lastTime)}</div>}</div>
                 <div className="contact-preview">{c.lastMsg || `@${c.username}`}</div>
               </div>
             </div>
@@ -654,88 +505,42 @@ function App() {
         </div>
       </div>
 
-      {/* ── CHAT AREA ── */}
-      {activePeer ? (
-        <div className="chat-area">
-          <div className="chat-bg" />
-
-          {/* Chat Header */}
-          <div className="chat-header">
-            <div className="chat-header-left">
-              <div className="contact-avatar">
-                <div className="avatar-img" style={{ width: 40, height: 40, backgroundImage: `url(${activePeer.avatar})`, backgroundColor: colorFor(activePeer.displayName) }}>
-                  {!activePeer.avatar && getInitial(activePeer.displayName)}
+      {/* Chat */}
+      <div className={`chat-area ${view === 'list' || !activePeer ? 'hidden' : ''}`}>
+        <div className="chat-bg" />
+        {activePeer ? (
+          <>
+            <div className="chat-header">
+              <div className="chat-header-left">
+                <button className="icon-btn" onClick={() => setView('list')} style={{ marginRight: 8 }}><ChevronLeft size={24} /></button>
+                <div className="avatar-img" style={{ width: 40, height: 40, backgroundImage: `url(${activePeer.avatar})`, backgroundColor: colorFor(activePeer.displayName) }}>{!activePeer.avatar && getInitial(activePeer.displayName)}</div>
+                <div><div className="chat-header-name">{activePeer.displayName}</div><div className="chat-header-status">{onlineUsers.has(activePeer.id) ? 'Online' : 'Offline'}</div></div>
+              </div>
+              <div className="chat-header-actions">
+                <button className="icon-btn green" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-request', to: activePeer.id, callerInfo: { id: user.id, displayName: user.displayName, avatar: user.avatar }, callType: 'audio' })); setActiveCall({ peer: activePeer, callType: 'audio', isIncoming: false }); }}><Phone size={18} /></button>
+                <button className="icon-btn green" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-request', to: activePeer.id, callerInfo: { id: user.id, displayName: user.displayName, avatar: user.avatar }, callType: 'video' })); setActiveCall({ peer: activePeer, callType: 'video', isIncoming: false }); }}><Video size={18} /></button>
+                <button className="icon-btn" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-request', to: activePeer.id, callerInfo: { id: user.id, displayName: user.displayName, avatar: user.avatar }, callType: 'video' })); setActiveCall({ peer: activePeer, callType: 'video', isIncoming: false }); }}><MonitorUp size={18} /></button>
+              </div>
+            </div>
+            <div className="messages-scroll">
+              {messages.map((m, i) => (
+                <div key={m.id} className={`msg-row ${m.from === user.id ? 'out' : 'in'}`}>
+                  <div className="msg-bubble">{m.text}<div className="msg-meta">{timeStr(m.timestamp)}</div></div>
                 </div>
-                {onlineUsers.has(activePeer.id) && <div className="online-dot" />}
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+            <form className="chat-input-bar" onSubmit={send}>
+              <div className="msg-input-wrap">
+                <textarea placeholder="Message" value={msgInput} rows={1} onChange={e => setMsgInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} />
               </div>
-              <div>
-                <div className="chat-header-name">{activePeer.displayName}</div>
-                <div className="chat-header-status">
-                  {onlineUsers.has(activePeer.id) ? 'Online' : '@' + activePeer.username}
-                </div>
-              </div>
-            </div>
-            <div className="chat-header-actions">
-              <button className="icon-btn green" title="Voice Call" onClick={() => startCall('audio')}><Phone size={20} /></button>
-              <button className="icon-btn green" title="Video Call" onClick={() => startCall('video')}><Video size={20} /></button>
-              <button className="icon-btn" title="Screen Share" onClick={() => startCall('video')}><MonitorUp size={20} /></button>
-              <button className="icon-btn"><MoreVertical size={20} /></button>
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="messages-scroll">
-            {Object.entries(groupedMessages).map(([date, msgs]) => (
-              <div key={date}>
-                <div className="msg-date-divider"><span>{date}</span></div>
-                {msgs.map((msg, i) => {
-                  const isMe = msg.from === user.id;
-                  const showAvatar = !isMe && (i === 0 || msgs[i - 1].from !== msg.from);
-                  return (
-                    <div key={msg.id} className={`msg-row ${isMe ? 'out' : 'in'}`}>
-                      <div className="msg-bubble">
-                        {msg.text}
-                        <div className="msg-meta">{timeStr(msg.timestamp)}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Input */}
-          <form className="chat-input-bar" onSubmit={sendMsg}>
-            <div className="msg-input-wrap">
-              <textarea
-                ref={inputRef}
-                placeholder="Type a message"
-                value={msgInput}
-                rows={1}
-                onChange={e => setMsgInput(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
-                }}
-              />
-            </div>
-            <button type="submit" className="send-btn" disabled={!msgInput.trim()}>
-              <Send size={20} />
-            </button>
-          </form>
-        </div>
-      ) : (
-        <div className="chat-area">
-          <div className="chat-bg" />
-          <div className="empty-chat">
-            <div className="empty-chat-icon">
-              <MessageSquare size={52} color="var(--primary)" />
-            </div>
-            <h2>Massenger</h2>
-            <p>Search for a username to start a conversation</p>
-          </div>
-        </div>
-      )}
+              <button type="submit" className="send-btn" disabled={!msgInput.trim()}><Send size={20} /></button>
+            </form>
+          </>
+        ) : (
+          <div className="empty-chat"><div className="empty-chat-icon"><MessageSquare size={52} color="var(--primary)" /></div><h2>Massenger</h2><p>Select a chat to start messaging</p></div>
+        )}
+      </div>
     </div>
   );
 }
