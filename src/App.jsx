@@ -147,40 +147,93 @@ function ProfileSettings({ user, onClose, onUpdate }) {
     <div className="modal-overlay">
       <div className="modal-card">
         <div className="modal-header">
-          <h2>Profile Settings</h2>
-          <button onClick={onClose}><X size={20} /></button>
+          <h2>Edit Profile</h2>
+          <button className="icon-btn" onClick={onClose}><X size={20} /></button>
         </div>
-        <div className="modal-body">
-          <div className="profile-avatar-edit">
-            <div className="avatar-img" style={{ backgroundImage: `url(${avatar})`, backgroundColor: colorFor(displayName) }}>
+        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div className="profile-avatar-edit" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+            <div className="avatar-img" style={{ 
+              width: '100px', 
+              height: '100px', 
+              borderRadius: '50%',
+              backgroundImage: `url(${avatar})`, 
+              backgroundColor: colorFor(displayName),
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '32px',
+              fontWeight: 'bold',
+              color: 'white',
+              border: '3px solid var(--primary)'
+            }}>
               {!avatar && getInitial(displayName)}
             </div>
             
             <input type="file" ref={fileInputRef} onChange={onFileChange} style={{ display: 'none' }} accept="image/*" />
-            <button className="auth-submit" style={{ padding: '8px 16px', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: 'auto' }} onClick={() => fileInputRef.current.click()}>
-              <Camera size={16} /> Upload Photo
+            <button className="auth-submit" style={{ 
+              padding: '10px 20px', 
+              fontSize: '14px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              gap: '8px', 
+              width: 'auto',
+              margin: '0 auto' 
+            }} onClick={() => fileInputRef.current.click()}>
+              <Camera size={18} /> Upload New Photo
             </button>
 
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 10 }}>Or pick a character:</p>
-            <div className="avatar-selector">
-              {DEFAULT_AVATARS.map(url => (
-                <div 
-                  key={url} 
-                  className={`avatar-option ${avatar === url ? 'active' : ''}`}
-                  style={{ backgroundImage: `url(${url})` }}
-                  onClick={() => setAvatar(url)}
-                />
-              ))}
+            <div style={{ width: '100%', textAlign: 'center', marginTop: '8px' }}>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>— Or pick a character —</p>
+              <div className="avatar-selector" style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(4, 1fr)', 
+                gap: '10px',
+                maxWidth: '240px',
+                margin: '0 auto'
+              }}>
+                {DEFAULT_AVATARS.map(url => (
+                  <div 
+                    key={url} 
+                    className={`avatar-option ${avatar === url ? 'active' : ''}`}
+                    style={{ 
+                      width: '100%', 
+                      aspectRatio: '1', 
+                      borderRadius: '50%', 
+                      backgroundImage: `url(${url})`,
+                      backgroundSize: 'cover',
+                      cursor: 'pointer',
+                      border: avatar === url ? '3px solid var(--primary)' : '2px solid transparent',
+                      transition: 'all 0.2s'
+                    }}
+                    onClick={() => setAvatar(url)}
+                  />
+                ))}
+              </div>
             </div>
           </div>
-          <div className="settings-field">
-            <label>Display Name</label>
-            <input value={displayName} onChange={e => setDisplayName(e.target.value)} />
+          
+          <div className="settings-field" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>Display Name</label>
+            <input 
+              style={{ 
+                width: '100%', 
+                padding: '12px', 
+                background: 'var(--bg)', 
+                border: '1px solid var(--border)', 
+                borderRadius: '8px', 
+                color: 'var(--text)' 
+              }} 
+              value={displayName} 
+              onChange={e => setDisplayName(e.target.value)} 
+            />
           </div>
         </div>
-        <div className="modal-footer">
-          <button className="btn-cancel" onClick={onClose}>Cancel</button>
-          <button className="btn-save" onClick={save} disabled={loading}>{loading ? 'Saving...' : 'Save Changes'}</button>
+        <div className="modal-footer" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'flex-end', gap: '12px', background: 'var(--bg-input)' }}>
+          <button className="btn-cancel" style={{ color: 'var(--text-muted)', fontWeight: '500' }} onClick={onClose}>Cancel</button>
+          <button className="btn-save" style={{ background: 'var(--primary)', color: 'white', padding: '10px 24px', borderRadius: '8px', fontWeight: '600' }} onClick={save} disabled={loading}>{loading ? 'Saving...' : 'Save Changes'}</button>
         </div>
       </div>
     </div>
