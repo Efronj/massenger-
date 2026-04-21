@@ -512,7 +512,13 @@ function App() {
           const arr = [...prev];
           const idx = arr.findIndex(c => c.id === otherId);
           if (idx !== -1) {
-            arr[idx] = { ...arr[idx], lastMsg: msg.text, lastTime: msg.timestamp };
+            const currentUnread = arr[idx].unreadCount || 0;
+            arr[idx] = { 
+              ...arr[idx], 
+              lastMsg: msg.text, 
+              lastTime: msg.timestamp,
+              unreadCount: (activePeer?.id === otherId) ? 0 : currentUnread + 1
+            };
             // Move to top
             const itm = arr.splice(idx, 1)[0];
             arr.unshift(itm);
@@ -561,10 +567,13 @@ function App() {
     setActivePeer(peer);
     setView('chat');
     setSearch('');
-    // Ensure in contacts
+    // Ensure in contacts and reset unread
     setContacts(prev => {
-      if (prev.find(c => c.id === peer.id)) return prev;
-      return [peer, ...prev];
+      const idx = prev.findIndex(c => c.id === peer.id);
+      if (idx === -1) return [peer, ...prev];
+      const arr = [...prev];
+      arr[idx] = { ...arr[idx], unreadCount: 0 };
+      return arr;
     });
     loadMessages(peer.id);
   };
@@ -634,8 +643,14 @@ function App() {
                 {onlineUsers.has(c.id) && <div className="online-dot" />}
               </div>
               <div className="contact-info">
-                <div className="contact-row1"><div className="contact-name">{c.displayName}</div>{c.lastTime && <div className="contact-time">{timeStr(c.lastTime)}</div>}</div>
-                <div className="contact-preview">{c.lastMsg || `@${c.username}`}</div>
+                <div className="contact-row1">
+                  <div className="contact-name">{c.displayName}</div>
+                  {c.lastTime && <div className="contact-time">{timeStr(c.lastTime)}</div>}
+                </div>
+                <div className="contact-row2" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="contact-preview">{c.lastMsg || `@${c.username}`}</div>
+                  {c.unreadCount > 0 && <div className="unread-badge">{c.unreadCount}</div>}
+                </div>
               </div>
             </div>
           ))}
