@@ -437,8 +437,8 @@ function App() {
   
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
-  const recvSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3'));
-  const sentSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2357/2357-preview.mp3'));
+  const recvSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2357/2357-preview.mp3'));
+  const sentSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3'));
   const ringSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/1360/1360-preview.mp3'));
 
   useEffect(() => {
