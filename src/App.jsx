@@ -40,6 +40,20 @@ function getInitial(name) { return name ? name[0].toUpperCase() : '?'; }
 const colors = ['#00a884','#1877f2','#e53935','#7b1fa2','#f57c00','#00838f'];
 function colorFor(name) { return colors[(name?.charCodeAt(0) || 0) % colors.length]; }
 
+const VAPID_PUBLIC_KEY = 'BPFgOwZlOvfolHvuEcfpGk9Qewhd8I-Uo5r47jWOc6-3IUlo3TEwE0vxNyb75-W9rpaswnTejDEKmW2f0xjeSDM';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+
 const RTC_CONFIG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -449,6 +463,25 @@ function App() {
     if (user && window.innerWidth < 768) {
       setTimeout(() => searchInputRef.current?.focus(), 500);
     }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const registerPush = async () => {
+      try {
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+        await fetch(`${API}/api/subscribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, subscription })
+        });
+      } catch (err) { console.error('Push failed:', err); }
+    };
+    if ('serviceWorker' in navigator && user) registerPush();
   }, [user]);
 
   useEffect(() => {

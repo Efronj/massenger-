@@ -4,7 +4,16 @@ import { WebSocketServer } from 'ws';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
+import webPush from 'web-push';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
+
+
+webPush.setVapidDetails(
+  'mailto:support@massenger.app',
+  'BPFgOwZlOvfolHvuEcfpGk9Qewhd8I-Uo5r47jWOc6-3IUlo3TEwE0vxNyb75-W9rpaswnTejDEKmW2f0xjeSDM',
+  'CgDy4-ByE-UxV3V6nGb4ryziTjJ375aFHjxCDX3p22g'
+);
+
 
 const app = express();
 const server = createServer(app);
@@ -33,7 +42,38 @@ function saveDB(db) {
 }
 
 // ─── Auth Endpoints ──────────────────────────────────────────────────────────
-app.post('/api/register', async (req, res) => {
+app.post('/api/subscribe', (req, res) => {
+  const { userId, subscription } = req.body;
+  const db = loadDB();
+  const index = db.users.findIndex(u => u.id === userId);
+  if (index === -1) return res.status(404).json({ error: 'User not found' });
+  
+  if (!db.users[index].pushSubs) db.users[index].pushSubs = [];
+  // Avoid duplicates
+  const subIdx = db.users[index].pushSubs.findIndex(s => s.endpoint === subscription.endpoint);
+  if (subIdx === -1) db.users[index].pushSubs.push(subscription);
+  else db.users[index].pushSubs[subIdx] = subscription;
+  
+  saveDB(db);
+  res.status(201).json({ success: true });
+});
+
+async function sendPush(toId, payload) {
+  const db = loadDB();
+  const user = db.users.find(u => u.id === toId);
+  if (!user || !user.pushSubs) return;
+  
+  const results = await Promise.allSettled(
+    user.pushSubs.map(sub => webPush.sendNotification(sub, JSON.stringify(payload)))
+  );
+  
+  // Cleanup failed subs (e.g. expired)
+  const failed = results.filter(r => r.status === 'rejected');
+  if (failed.length > 0) {
+    // Logic to remove stale subs would go here for a production app
+  }
+}
+
   const { username, password, displayName } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
@@ -137,27 +177,40 @@ wss.on('connection', (ws) => {
     // ── Chat Message ──
     if (data.type === 'message') {
       const db = loadDB();
-      const msg = {
-        id: uuidv4(),
-        from: data.from,
-        to: data.to,
-        text: data.text,
-        timestamp: Date.now(),
-      };
+      const msg = { id: uuidv4(), from: data.from, to: data.to, text: data.text, timestamp: Date.now() };
       db.messages.push(msg);
       saveDB(db);
+      
+      const targetUser = db.users.find(u => u.id === data.to);
+      const sender = db.users.find(u => u.id === data.from);
 
-      // Send to recipient if online
-      const recipientWs = clients.get(data.to);
-      if (recipientWs && recipientWs.readyState === 1) {
-        recipientWs.send(JSON.stringify({ type: 'message', msg }));
+      broadcast(data.to, { type: 'message', msg });
+      broadcast(data.from, { type: 'message_sent', msg });
+      
+      // If target user is offline, send push
+      if (!clients.has(data.to)) {
+        sendPush(data.to, {
+          title: `Message from ${sender.displayName}`,
+          body: data.text,
+          url: '/'
+        });
       }
-      // Echo back to sender with saved msg
-      ws.send(JSON.stringify({ type: 'message_sent', msg }));
+    }
+
+    if (data.type === 'call-request') {
+      broadcast(data.to, { type: 'call-request', from: data.from, callerInfo: data.callerInfo, callType: data.callType });
+      
+      if (!clients.has(data.to)) {
+        sendPush(data.to, {
+          title: `Incoming ${data.callType} call`,
+          body: `${data.callerInfo.displayName} is calling you...`,
+          url: '/'
+        });
+      }
     }
 
     // ── WebRTC Signaling (offer, answer, ice-candidate, call-end) ──
-    if (['offer', 'answer', 'ice-candidate', 'call-end', 'call-request', 'call-decline'].includes(data.type)) {
+    if (['offer', 'answer', 'ice-candidate', 'call-end', 'call-decline'].includes(data.type)) {
       const targetWs = clients.get(data.to);
       if (targetWs && targetWs.readyState === 1) {
         data.from = myUserId;
