@@ -664,7 +664,7 @@ function App() {
   );
 
 
-  if (!user) return <AuthScreen onAuth={onAuth} />;
+  if (!user || typeof user !== 'object' || !user.id) return <AuthScreen onAuth={onAuth} />;
 
   return (
     <div className="app-layout">
