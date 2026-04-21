@@ -437,6 +437,21 @@ function App() {
   
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const msgSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3'));
+  const ringSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3'));
+
+  useEffect(() => {
+    ringSound.current.loop = true;
+  }, []);
+
+  useEffect(() => {
+    if (incomingCall || (activeCall && !activeCall.isIncoming && !activeCall.connected)) {
+      ringSound.current.play().catch(() => {});
+    } else {
+      ringSound.current.pause();
+      ringSound.current.currentTime = 0;
+    }
+  }, [incomingCall, activeCall]);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -473,6 +488,11 @@ function App() {
       if (data.type === 'message' || data.type === 'message_sent') {
         const msg = data.msg;
         const otherId = data.type === 'message' ? msg.from : msg.to;
+        
+        if (data.type === 'message') {
+          msgSound.current.currentTime = 0;
+          msgSound.current.play().catch(() => {});
+        }
         
         // Auto add to contacts if not there
         setContacts(prev => {
