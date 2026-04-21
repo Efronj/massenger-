@@ -5,8 +5,8 @@ import {
   PhoneIncoming, Check, CheckCheck, Loader, ChevronLeft, Settings, User, Image, Camera
 } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:4000';
+const API = import.meta.env.VITE_API_URL || 'https://massenger-iqw8.onrender.com';
+const WS_URL = import.meta.env.VITE_WS_URL || 'wss://massenger-iqw8.onrender.com';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 const DEFAULT_AVATARS = [
