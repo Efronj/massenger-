@@ -657,12 +657,13 @@ function App() {
   };
 
   if (hasError) return (
-    <div style={{ padding: 40, textAlign: 'center', background: '#900', color: 'white', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-      <h1>Technical Error Detected</h1>
-      <p>The app encountered an unexpected issue.</p>
-      <button onClick={() => { localStorage.clear(); window.location.reload(); }} style={{ background: 'white', color: 'black', padding: '12px 24px', borderRadius: 8, marginTop: 20, fontWeight: 'bold' }}>Clear Memory & Restart</button>
+    <div style={{ padding: 40, textAlign: 'center', background: '#111b21', color: 'white', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+      <h2 style={{ marginBottom: 16 }}>Connection Issue</h2>
+      <p style={{ color: 'rgba(255,255,255,0.6)', maxWidth: 300 }}>The app couldn't load your session. Please refresh or try again.</p>
+      <button onClick={() => { localStorage.clear(); window.location.reload(); }} style={{ background: '#00a884', color: 'white', padding: '12px 24px', borderRadius: 8, marginTop: 24, fontWeight: '600' }}>Retry Now</button>
     </div>
   );
+
 
 
   if (!user || typeof user !== 'object' || !user.id) return <AuthScreen onAuth={onAuth} />;
