@@ -22,9 +22,7 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-const ALLOWED_ORIGINS = process.env.FRONTEND_URL
-  ? [process.env.FRONTEND_URL, 'http://localhost:5173']
-  : true; // allow all origins if not set
+const ALLOWED_ORIGINS = true; // Allow all origins to prevent 'Failed to fetch' CORS errors
 
 app.use(helmet({ contentSecurityPolicy: false })); // Disable CSP as it can block external assets (avatars/STUN) unless configured deeply
 
