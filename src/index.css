@@ -177,12 +177,12 @@ a { color: inherit; text-decoration: none; }
 }
 
 .sidebar-top {
-  padding: 10px 16px;
+  padding: 0 16px;
   background: var(--bg-panel);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 60px;
+  height: 52px;
 }
 .sidebar-top-user {
   display: flex;
@@ -288,11 +288,11 @@ a { color: inherit; text-decoration: none; }
 }
 
 .chat-header {
-  height: 52px;
+  height: 46px;
   background: var(--bg-panel);
   display: flex;
   align-items: center;
-  padding: 0 16px;
+  padding: 0 12px;
   justify-content: space-between;
   border-bottom: 1px solid var(--border);
   z-index: 5;
