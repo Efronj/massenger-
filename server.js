@@ -85,6 +85,7 @@ async function sendPush(toId, payload) {
   }
 }
 
+app.post('/api/register', authLimiter, async (req, res) => {
   const { username, password, displayName } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
