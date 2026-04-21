@@ -306,11 +306,7 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming, initialRemoteSt
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: callType === 'video' ? { facingMode: 'user' } : false,
-        audio: { 
-          echoCancellation: true, 
-          noiseSuppression: true, 
-          autoGainControl: true 
-        }
+        audio: { echoCancellation: true, noiseSuppression: true }
       });
       localStreamRef.current = stream;
       if (localRef.current) localRef.current.srcObject = stream;
@@ -318,6 +314,7 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming, initialRemoteSt
       const pc = new RTCPeerConnection(RTC_CONFIG);
       pcRef.current = pc;
       wsRef.current._pc = pc;
+      wsRef.current._iceBuffer = [];
 
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
@@ -334,13 +331,11 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming, initialRemoteSt
         }
       };
 
-      if (!isIncoming) {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        wsRef.current?.send(JSON.stringify({ type: 'offer', to: peer.id, offer, callType }));
-      }
+      // If we are the one who accepted, we just wait for offer
+      // If we are the one who started, we Wait for 'call-accept' before sending offer
     } catch (err) { console.error(err); }
   };
+
 
   useEffect(() => {
     init();
@@ -643,14 +638,37 @@ function App() {
         // Signaling
         if (data.type === 'call-request') setIncomingCall(data);
         if (data.type === 'call-decline' || data.type === 'call-end') { setActiveCall(null); setIncomingCall(null); }
-        if (data.type === 'offer' && ws._pc) {
-          await ws._pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-          const ans = await ws._pc.createAnswer();
-          await ws._pc.setLocalDescription(ans);
-          ws.send(JSON.stringify({ type: 'answer', to: data.from, answer: ans }));
+        if (data.type === 'call-accept' && wsRef.current._pc) {
+          const pc = wsRef.current._pc;
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          wsRef.current.send(JSON.stringify({ type: 'offer', to: data.from, offer }));
         }
-        if (data.type === 'answer' && ws._pc) await ws._pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-        if (data.type === 'ice-candidate' && ws._pc) try { await ws._pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch {}
+        if (data.type === 'offer' && wsRef.current._pc) {
+          const pc = wsRef.current._pc;
+          await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+          const ans = await pc.createAnswer();
+          await pc.setLocalDescription(ans);
+          wsRef.current.send(JSON.stringify({ type: 'answer', to: data.from, answer: ans }));
+          // Handle buffered candidates
+          if (wsRef.current._iceBuffer) {
+            wsRef.current._iceBuffer.forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {}));
+            wsRef.current._iceBuffer = [];
+          }
+        }
+        if (data.type === 'answer' && wsRef.current._pc) {
+          await wsRef.current._pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        }
+        if (data.type === 'ice-candidate') {
+          const pc = wsRef.current._pc;
+          if (pc && pc.remoteDescription) {
+            pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(() => {});
+          } else if (wsRef.current) {
+            if (!wsRef.current._iceBuffer) wsRef.current._iceBuffer = [];
+            wsRef.current._iceBuffer.push(data.candidate);
+          }
+        }
+
       } catch (err) { console.error('WS Message Error:', err); }
     };
 
@@ -736,7 +754,12 @@ function App() {
           <div className="incoming-info"><h3>{incomingCall.callerInfo.displayName}</h3><p>Incoming {incomingCall.callType} call...</p></div>
           <div className="incoming-actions">
             <button className="reject-btn" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-decline', to: incomingCall.callerInfo.id })); setIncomingCall(null); }}><X /></button>
-            <button className="accept-btn" onClick={() => { setActiveCall({ peer: incomingCall.callerInfo, callType: incomingCall.callType, isIncoming: true }); setIncomingCall(null); }}><Phone /></button>
+            <button className="accept-btn" onClick={() => { 
+              wsRef.current.send(JSON.stringify({ type: 'call-accept', to: incomingCall.callerInfo.id, from: user.id }));
+              setActiveCall({ peer: incomingCall.callerInfo, callType: incomingCall.callType, isIncoming: true }); 
+              setIncomingCall(null); 
+            }}><Phone /></button>
+
           </div>
         </div>
       )}

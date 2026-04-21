@@ -260,9 +260,10 @@ wss.on('connection', (ws) => {
       }
     }
 
-    // ── WebRTC Signaling (offer, answer, ice-candidate, call-end) ──
-    if (['offer', 'answer', 'ice-candidate', 'call-end', 'call-decline'].includes(data.type)) {
+    // ── WebRTC Signaling (offer, answer, ice-candidate, call-end, call-accept, call-decline) ──
+    if (['offer', 'answer', 'ice-candidate', 'call-end', 'call-accept', 'call-decline'].includes(data.type)) {
       const targetWs = clients.get(data.to);
+
       if (targetWs && targetWs.readyState === 1) {
         data.from = myUserId;
         targetWs.send(JSON.stringify(data));
