@@ -76,8 +76,10 @@ app.post('/api/register', async (req, res) => {
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
   const db = loadDB();
-  const exists = db.users.find(u => u.username.toLowerCase() === username.toLowerCase());
+  // Case-insensitive check and trim whitespace
+  const exists = db.users.find(u => u.username.trim().toLowerCase() === username.trim().toLowerCase());
   if (exists) return res.status(400).json({ error: 'Username already taken' });
+
 
   const hashed = await bcrypt.hash(password, 10);
   const user = {
@@ -141,7 +143,15 @@ app.put('/api/user/profile', (req, res) => {
   res.json(safeUser);
 });
 
+// ─── ADMIN: Hard Reset (Wipe all data) ───
+app.get('/api/admin/hard-reset-database', (req, res) => {
+  const db = { users: [], messages: [] };
+  saveDB(db);
+  res.send('<h1>✅ Database Wiped Successfully</h1><p>The live database is now empty. You can now register fresh accounts.</p>');
+});
+
 app.delete('/api/user/:id', async (req, res) => {
+
   const { id } = req.params;
   const db = loadDB();
   db.users = db.users.filter(u => u.id !== id);
