@@ -272,8 +272,12 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming, initialRemoteSt
   const init = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: callType === 'video',
-        audio: true
+        video: callType === 'video' ? { facingMode: 'user' } : false,
+        audio: { 
+          echoCancellation: true, 
+          noiseSuppression: true, 
+          autoGainControl: true 
+        }
       });
       localStreamRef.current = stream;
       if (localRef.current) localRef.current.srcObject = stream;
@@ -366,11 +370,19 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming, initialRemoteSt
         )}
       </div>
       <div className="call-controls-bar">
-        <button className="cc-btn" onClick={() => { setMuted(!muted); localStreamRef.current.getAudioTracks()[0].enabled = muted; }}>
+        <button className="cc-btn" onClick={() => { 
+          const newState = !muted;
+          setMuted(newState); 
+          localStreamRef.current.getAudioTracks().forEach(t => t.enabled = !newState); 
+        }}>
           <div className={`cc-btn-circle ${muted ? 'muted' : ''}`}>{muted ? <MicOff /> : <Mic />}</div>
         </button>
         {callType === 'video' && (
-          <button className="cc-btn" onClick={() => { setVideoOff(!videoOff); localStreamRef.current.getVideoTracks()[0].enabled = videoOff; }}>
+          <button className="cc-btn" onClick={() => { 
+            const newState = !videoOff;
+            setVideoOff(newState); 
+            localStreamRef.current.getVideoTracks().forEach(t => t.enabled = !newState); 
+          }}>
             <div className={`cc-btn-circle ${videoOff ? 'muted' : ''}`}>{videoOff ? <VideoOff /> : <VideoIcon />}</div>
           </button>
         )}
