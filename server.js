@@ -15,7 +15,8 @@ const ALLOWED_ORIGINS = process.env.FRONTEND_URL
   : true; // allow all origins if not set
 
 app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // ─── Simple File-based Database ─────────────────────────────────────────────
 const DB_FILE = './db.json';

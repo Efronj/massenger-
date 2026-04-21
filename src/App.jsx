@@ -17,7 +17,11 @@ const DEFAULT_AVATARS = [
   'https://api.dicebear.com/7.x/avataaars/svg?seed=Easton',
   'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
   'https://api.dicebear.com/7.x/avataaars/svg?seed=George',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Henry'
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Henry',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Jack',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Kevin',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Liam',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Mason'
 ];
 
 // ─── Utilities ──────────────────────────────────────────────────────────────
