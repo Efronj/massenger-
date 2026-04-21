@@ -459,6 +459,7 @@ function App() {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const activePeerRef = useRef(null);
+  const wsRef = useRef(null);
   useEffect(() => { activePeerRef.current = activePeer; }, [activePeer]);
 
 
