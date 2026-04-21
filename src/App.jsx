@@ -437,7 +437,8 @@ function App() {
   
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
-  const msgSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3'));
+  const recvSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3'));
+  const sentSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2357/2357-preview.mp3'));
   const ringSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/1360/1360-preview.mp3'));
 
   useEffect(() => {
@@ -490,8 +491,11 @@ function App() {
         const otherId = data.type === 'message' ? msg.from : msg.to;
         
         if (data.type === 'message') {
-          msgSound.current.currentTime = 0;
-          msgSound.current.play().catch(() => {});
+          recvSound.current.currentTime = 0;
+          recvSound.current.play().catch(() => {});
+        } else if (data.type === 'message_sent') {
+          sentSound.current.currentTime = 0;
+          sentSound.current.play().catch(() => {});
         }
         
         // Auto add to contacts if not there
