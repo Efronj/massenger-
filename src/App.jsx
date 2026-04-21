@@ -424,11 +424,26 @@ function App() {
     } catch { return def; }
   };
 
-  const [user, setUser] = useState(() => getSafeJSON('m_user'));
+  // --- Stability Refactor ---
+  const [hasError, setHasError] = useState(false);
+  useEffect(() => {
+    const handleError = (e) => { console.error('App Crash:', e); setHasError(true); };
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
+  const [user, setUser] = useState(() => {
+    try { return getSafeJSON('m_user'); } catch { return null; }
+  });
   const [token, setToken] = useState(() => localStorage.getItem('m_token'));
   
-  const [contacts, setContacts] = useState(() => getSafeJSON('m_contacts', []));
-  const [activePeer, setActivePeer] = useState(() => getSafeJSON('m_activePeer'));
+  const [contacts, setContacts] = useState(() => {
+    try { return getSafeJSON('m_contacts', []); } catch { return []; }
+  });
+  const [activePeer, setActivePeer] = useState(() => {
+    try { return getSafeJSON('m_activePeer'); } catch { return null; }
+  });
+
   const [messages, setMessages] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   
@@ -529,63 +544,62 @@ function App() {
     ws.onopen = () => ws.send(JSON.stringify({ type: 'register', userId: user.id }));
     
     ws.onmessage = async (e) => {
-      const data = JSON.parse(e.data);
-      if (data.type === 'presence') {
-        setOnlineUsers(prev => {
-          const next = new Set(prev);
-          data.isOnline ? next.add(data.userId) : next.delete(data.userId);
-          return next;
-        });
-      }
-      if (data.type === 'message' || data.type === 'message_sent') {
-        const msg = data.msg;
-        const otherId = data.type === 'message' ? msg.from : msg.to;
-        if (data.type === 'message') {
-          recvSound.current.currentTime = 0;
-          recvSound.current.play().catch(() => {});
-        } else {
-          sentSound.current.currentTime = 0;
-          sentSound.current.play().catch(() => {});
+      try {
+        const data = JSON.parse(e.data);
+        if (data.type === 'presence') {
+          setOnlineUsers(prev => {
+            const next = new Set(prev);
+            data.isOnline ? next.add(data.userId) : next.delete(data.userId);
+            return next;
+          });
         }
-        setContacts(prev => {
-          const exists = prev.find(c => c.id === otherId);
-          if (!exists) {
-            fetch(`${API}/api/user/${otherId}`).then(r => r.json()).then(u => {
-              setContacts(p => p.find(x => x.id === u.id) ? p : [u, ...p]);
-            }).catch(() => {});
+        if (data.type === 'message' || data.type === 'message_sent') {
+          const msg = data.msg;
+          const otherId = data.type === 'message' ? msg.from : msg.to;
+          if (data.type === 'message') {
+            recvSound.current.currentTime = 0;
+            recvSound.current.play().catch(() => {});
+          } else {
+            sentSound.current.currentTime = 0;
+            sentSound.current.play().catch(() => {});
           }
-          const arr = [...prev];
-          const idx = arr.findIndex(c => c.id === otherId);
-          if (idx !== -1) {
-            arr[idx] = { 
-              ...arr[idx], 
-              lastMsg: msg.text, 
-              lastTime: msg.timestamp,
-              unreadCount: (activePeerRef.current?.id === otherId) ? 0 : (arr[idx].unreadCount || 0) + 1
-            };
-            const itm = arr.splice(idx, 1)[0];
-            arr.unshift(itm);
+          setContacts(prev => {
+            const arr = [...prev];
+            const idx = arr.findIndex(c => c.id === otherId);
+            if (idx === -1) {
+              fetch(`${API}/api/user/${otherId}`).then(r => r.json()).then(u => {
+                setContacts(p => p.find(x => x.id === u.id) ? p : [u, ...p]);
+              }).catch(() => {});
+            } else {
+              arr[idx] = { 
+                ...arr[idx], 
+                lastMsg: msg.text, 
+                lastTime: msg.timestamp,
+                unreadCount: (activePeerRef.current?.id === otherId) ? 0 : (arr[idx].unreadCount || 0) + 1
+              };
+              const itm = arr.splice(idx, 1)[0];
+              arr.unshift(itm);
+            }
+            return arr;
+          });
+          if (activePeerRef.current?.id === otherId) {
+            setMessages(prev => [...prev, msg]);
           }
-          return arr;
-        });
-        if (activePeerRef.current?.id === otherId) {
-          setMessages(prev => [...prev, msg]);
         }
-      }
-
-
-      // Signaling
-      if (data.type === 'call-request') setIncomingCall(data);
-      if (data.type === 'call-decline' || data.type === 'call-end') { setActiveCall(null); setIncomingCall(null); }
-      if (data.type === 'offer' && ws._pc) {
-        await ws._pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-        const ans = await ws._pc.createAnswer();
-        await ws._pc.setLocalDescription(ans);
-        ws.send(JSON.stringify({ type: 'answer', to: data.from, answer: ans }));
-      }
-      if (data.type === 'answer' && ws._pc) await ws._pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-      if (data.type === 'ice-candidate' && ws._pc) try { await ws._pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch {}
+        // Signaling
+        if (data.type === 'call-request') setIncomingCall(data);
+        if (data.type === 'call-decline' || data.type === 'call-end') { setActiveCall(null); setIncomingCall(null); }
+        if (data.type === 'offer' && ws._pc) {
+          await ws._pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+          const ans = await ws._pc.createAnswer();
+          await ws._pc.setLocalDescription(ans);
+          ws.send(JSON.stringify({ type: 'answer', to: data.from, answer: ans }));
+        }
+        if (data.type === 'answer' && ws._pc) await ws._pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        if (data.type === 'ice-candidate' && ws._pc) try { await ws._pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch {}
+      } catch (err) { console.error('WS Message Error:', err); }
     };
+
 
     return () => ws.close();
   }, [user]); // Removed activePeer dependency to keep WS alive
@@ -632,6 +646,14 @@ function App() {
     wsRef.current.send(JSON.stringify({ type: 'message', from: user.id, to: activePeer.id, text: msgInput }));
     setMsgInput('');
   };
+
+  if (hasError) return (
+    <div style={{ padding: 40, textAlign: 'center', background: '#111b21', color: 'white', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <h2>Something went wrong</h2>
+      <p>Please try clearing your browser cache and refreshing.</p>
+      <button onClick={() => { localStorage.clear(); window.location.reload(); }} style={{ background: '#00a884', padding: '10px 20px', borderRadius: 8, marginTop: 20 }}>Clear & Restart</button>
+    </div>
+  );
 
   if (!user) return <AuthScreen onAuth={onAuth} />;
 
@@ -724,7 +746,7 @@ function App() {
               <div className="chat-header-actions">
                 <button className="icon-btn green" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-request', to: activePeer.id, callerInfo: { id: user.id, displayName: user.displayName, avatar: user.avatar }, callType: 'audio' })); setActiveCall({ peer: activePeer, callType: 'audio', isIncoming: false }); }}><Phone size={18} /></button>
                 <button className="icon-btn green" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-request', to: activePeer.id, callerInfo: { id: user.id, displayName: user.displayName, avatar: user.avatar }, callType: 'video' })); setActiveCall({ peer: activePeer, callType: 'video', isIncoming: false }); }}><Video size={18} /></button>
-                <button className="icon-btn" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-request', to: activePeer.id, callerInfo: { id: user.id, displayName: user.displayName, avatar: user.avatar }, callType: 'video' })); setActiveCall({ peer: activePeer, callType: 'video', isIncoming: false }); }}><MonitorUp size={18} /></button>
+                <button className="icon-btn" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-request', to: activePeer.id, callerInfo: { id: user.id, displayName: user.displayName, avatar: user.avatar }, callType: 'video' })); setActiveCall({ peer: activePeer, callType: 'video', isIncoming: false }); }}><Monitor size={18} /></button>
               </div>
             </div>
             <div className="messages-scroll">
