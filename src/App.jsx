@@ -10,14 +10,14 @@ const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:4000';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 const DEFAULT_AVATARS = [
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Aidan',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Bentley',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Caleb',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Damion',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Easton',
   'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Jasper',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Milo',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Luna',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Buster',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Kitty',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Pepper'
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=George',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Henry'
 ];
 
 // ─── Utilities ──────────────────────────────────────────────────────────────

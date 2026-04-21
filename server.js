@@ -46,7 +46,7 @@ app.post('/api/register', async (req, res) => {
     username: username.toLowerCase(),
     displayName: displayName || username,
     password: hashed,
-    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
+    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=Aidan`,
     createdAt: Date.now()
   };
   db.users.push(user);
