@@ -439,11 +439,17 @@ function App() {
   // Mobile UI
   const [view, setView] = useState('list'); // 'list' or 'chat'
   
-  const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const searchInputRef = useRef(null);
   const recvSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2357/2357-preview.mp3'));
   const sentSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3'));
   const ringSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/1360/1360-preview.mp3'));
+
+  useEffect(() => {
+    if (user && window.innerWidth < 768) {
+      setTimeout(() => searchInputRef.current?.focus(), 500);
+    }
+  }, [user]);
 
   useEffect(() => {
     ringSound.current.loop = true;
@@ -630,7 +636,12 @@ function App() {
         <div className="search-bar">
           <div className="search-inner">
             <Search size={16} />
-            <input placeholder="Search username..." value={search} onChange={e => setSearch(e.target.value)} />
+            <input 
+              ref={searchInputRef}
+              placeholder="Search people to message..." 
+              value={search} 
+              onChange={e => setSearch(e.target.value)} 
+            />
             {search && <button className="clear-search-btn" onClick={() => setSearch('')}><X size={14} /></button>}
           </div>
         </div>
