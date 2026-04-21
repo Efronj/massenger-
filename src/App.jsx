@@ -435,6 +435,9 @@ function App() {
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const activePeerRef = useRef(null);
+  useEffect(() => { activePeerRef.current = activePeer; }, [activePeer]);
+
 
   useEffect(() => {
     localStorage.setItem('m_contacts', JSON.stringify(contacts));
@@ -527,7 +530,6 @@ function App() {
     
     ws.onmessage = async (e) => {
       const data = JSON.parse(e.data);
-      
       if (data.type === 'presence') {
         setOnlineUsers(prev => {
           const next = new Set(prev);
@@ -535,51 +537,42 @@ function App() {
           return next;
         });
       }
-
       if (data.type === 'message' || data.type === 'message_sent') {
         const msg = data.msg;
         const otherId = data.type === 'message' ? msg.from : msg.to;
-        
         if (data.type === 'message') {
           recvSound.current.currentTime = 0;
           recvSound.current.play().catch(() => {});
-        } else if (data.type === 'message_sent') {
+        } else {
           sentSound.current.currentTime = 0;
           sentSound.current.play().catch(() => {});
         }
-        
-        // Auto add to contacts if not there
         setContacts(prev => {
-          if (prev.find(c => c.id === otherId)) return prev;
-          // Fetch user info to add correctly
-          fetch(`${API}/api/user/${otherId}`).then(r => r.json()).then(u => {
-             setContacts(p => [u, ...p]);
-          });
-          return prev;
-        });
-
-        if (activePeer?.id === otherId) {
-          setMessages(prev => [...prev, msg]);
-        }
-        
-        setContacts(prev => {
+          const exists = prev.find(c => c.id === otherId);
+          if (!exists) {
+            fetch(`${API}/api/user/${otherId}`).then(r => r.json()).then(u => {
+              setContacts(p => p.find(x => x.id === u.id) ? p : [u, ...p]);
+            }).catch(() => {});
+          }
           const arr = [...prev];
           const idx = arr.findIndex(c => c.id === otherId);
           if (idx !== -1) {
-            const currentUnread = arr[idx].unreadCount || 0;
             arr[idx] = { 
               ...arr[idx], 
               lastMsg: msg.text, 
               lastTime: msg.timestamp,
-              unreadCount: (activePeer?.id === otherId) ? 0 : currentUnread + 1
+              unreadCount: (activePeerRef.current?.id === otherId) ? 0 : (arr[idx].unreadCount || 0) + 1
             };
-            // Move to top
             const itm = arr.splice(idx, 1)[0];
             arr.unshift(itm);
           }
           return arr;
         });
+        if (activePeerRef.current?.id === otherId) {
+          setMessages(prev => [...prev, msg]);
+        }
       }
+
 
       // Signaling
       if (data.type === 'call-request') setIncomingCall(data);
@@ -595,7 +588,8 @@ function App() {
     };
 
     return () => ws.close();
-  }, [user, activePeer]);
+  }, [user]); // Removed activePeer dependency to keep WS alive
+
 
   // ── Search ──
   useEffect(() => {
