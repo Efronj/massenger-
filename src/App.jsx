@@ -130,6 +130,7 @@ function ProfileSettings({ user, onClose, onUpdate }) {
   const fileInputRef = useRef(null);
 
   const save = async () => {
+    if (!displayName.trim()) return alert('Name cannot be empty');
     setLoading(true);
     try {
       const res = await fetch(`${API}/api/user/profile`, {
@@ -137,10 +138,13 @@ function ProfileSettings({ user, onClose, onUpdate }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: user.id, displayName, avatar })
       });
-      const updated = await res.json();
-      onUpdate(updated);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update');
+      onUpdate(data);
       onClose();
+      alert('Profile updated successfully!');
     } catch (err) {
+      alert(err.message);
       console.error(err);
     } finally {
       setLoading(false);
