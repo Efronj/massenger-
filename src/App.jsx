@@ -61,8 +61,11 @@ const RTC_CONFIG = {
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
     { urls: 'stun:stun4.l.google.com:19302' },
-    { urls: 'stun:global.stun.twilio.com:3478?transport=udp' }
-  ]
+    { urls: 'stun:global.stun.twilio.com:3478?transport=udp' },
+    { urls: 'stun:stun.services.mozilla.com' },
+    { urls: 'stun:stun.vidyo.com' }
+  ],
+  iceCandidatePoolSize: 10
 };
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -458,7 +461,9 @@ function App() {
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [toast, setToast] = useState(null); // { title: '', text: '', peer: {} }
   const activePeerRef = useRef(null);
+
   const wsRef = useRef(null);
   useEffect(() => { activePeerRef.current = activePeer; }, [activePeer]);
 
@@ -565,6 +570,7 @@ function App() {
         if (data.type === 'message' || data.type === 'message_sent') {
           const msg = data.msg;
           const otherId = data.type === 'message' ? msg.from : msg.to;
+          
           if (data.type === 'message') {
             recvSound.current.currentTime = 0;
             recvSound.current.play().catch(() => {});
@@ -572,14 +578,21 @@ function App() {
             sentSound.current.currentTime = 0;
             sentSound.current.play().catch(() => {});
           }
+
           setContacts(prev => {
             const arr = [...prev];
             const idx = arr.findIndex(c => c.id === otherId);
             if (idx === -1) {
               fetch(`${API}/api/user/${otherId}`).then(r => r.json()).then(u => {
                 setContacts(p => p.find(x => x.id === u.id) ? p : [u, ...p]);
+                if (activePeerRef.current?.id !== otherId) {
+                  setToast({ title: u.displayName, text: msg.text, peer: u });
+                }
               }).catch(() => {});
             } else {
+              if (activePeerRef.current?.id !== otherId) {
+                setToast({ title: arr[idx].displayName, text: msg.text, peer: arr[idx] });
+              }
               arr[idx] = { 
                 ...arr[idx], 
                 lastMsg: msg.text, 
@@ -591,6 +604,8 @@ function App() {
             }
             return arr;
           });
+
+
           if (activePeerRef.current?.id === otherId) {
             setMessages(prev => [...prev, msg]);
           }
@@ -651,10 +666,20 @@ function App() {
 
   const send = (e) => {
     e?.preventDefault();
-    if (!msgInput.trim()) return;
-    wsRef.current.send(JSON.stringify({ type: 'message', from: user.id, to: activePeer.id, text: msgInput }));
+    if (!msgInput.trim() || !activePeer) return;
+    try {
+      wsRef.current.send(JSON.stringify({ type: 'message', from: user.id, to: activePeer.id, text: msgInput }));
+    } catch (err) { console.error(err); }
     setMsgInput('');
   };
+
+  useEffect(() => {
+    if (toast) {
+      const t = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [toast]);
+
 
   if (hasError) return (
     <div style={{ padding: 40, textAlign: 'center', background: '#111b21', color: 'white', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
@@ -685,6 +710,19 @@ function App() {
       )}
 
       {activeCall && <CallOverlay peer={activeCall.peer} callType={activeCall.callType} wsRef={wsRef} isIncoming={activeCall.isIncoming} onEnd={() => setActiveCall(null)} />}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className="toast-popup" onClick={() => { openChat(toast.peer); setToast(null); }}>
+          <div className="avatar-img" style={{ width: 32, height: 32, fontSize: 13, backgroundImage: `url(${toast.peer.avatar})`, backgroundColor: colorFor(toast.peer.displayName) }}>{!toast.peer.avatar && getInitial(toast.peer.displayName)}</div>
+          <div className="toast-content">
+            <div className="toast-title">{toast.title}</div>
+            <div className="toast-text">{toast.text}</div>
+          </div>
+          <button className="toast-close" onClick={(e) => { e.stopPropagation(); setToast(null); }}><X size={14} /></button>
+        </div>
+      )}
+
 
       {/* Sidebar */}
       <div className={`sidebar ${view === 'chat' ? 'hidden' : ''}`}>
