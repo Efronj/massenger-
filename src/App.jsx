@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   MessageSquare, Search, Phone, Video, MoreVertical, Mic, MicOff,
-  VideoOff, Video as VideoIcon, MonitorUp, PhoneOff, Send, X, LogOut,
-  PhoneIncoming, Check, CheckCheck, Loader, ChevronLeft, Settings, User, Image, Camera
+  VideoOff, Video as VideoIcon, Monitor, PhoneOff, Send, X, LogOut,
+  PhoneIncoming, Check, CheckCheck, Loader2, ChevronLeft, Settings, User, Image, Camera
 } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || 'https://massenger-iqw8.onrender.com';
@@ -405,7 +405,7 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming, initialRemoteSt
           </button>
         )}
         {callType === 'video' && (
-          <button className="cc-btn" onClick={toggleScreen}><div className={`cc-btn-circle ${sharing ? 'muted' : ''}`}><MonitorUp /></div></button>
+          <button className="cc-btn" onClick={toggleScreen}><div className={`cc-btn-circle ${sharing ? 'muted' : ''}`}><Monitor /></div></button>
         )}
         <button className="cc-btn" onClick={end}><div className="cc-btn-circle end"><PhoneOff /></div></button>
       </div>
