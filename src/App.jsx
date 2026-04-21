@@ -417,11 +417,18 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming, initialRemoteSt
 //  MAIN APP
 // ════════════════════════════════════════════════════════════════════════════
 function App() {
-  const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('m_user')));
+  const getSafeJSON = (key, def = null) => {
+    try {
+      const val = localStorage.getItem(key);
+      return val ? JSON.parse(val) : def;
+    } catch { return def; }
+  };
+
+  const [user, setUser] = useState(() => getSafeJSON('m_user'));
   const [token, setToken] = useState(() => localStorage.getItem('m_token'));
   
-  const [contacts, setContacts] = useState(() => JSON.parse(localStorage.getItem('m_contacts') || '[]'));
-  const [activePeer, setActivePeer] = useState(() => JSON.parse(localStorage.getItem('m_activePeer') || 'null'));
+  const [contacts, setContacts] = useState(() => getSafeJSON('m_contacts', []));
+  const [activePeer, setActivePeer] = useState(() => getSafeJSON('m_activePeer'));
   const [messages, setMessages] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   

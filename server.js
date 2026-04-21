@@ -5,7 +5,10 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import webPush from 'web-push';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
+
 
 
 webPush.setVapidDetails(
@@ -22,6 +25,14 @@ const wss = new WebSocketServer({ server });
 const ALLOWED_ORIGINS = process.env.FRONTEND_URL
   ? [process.env.FRONTEND_URL, 'http://localhost:5173']
   : true; // allow all origins if not set
+
+app.use(helmet({ contentSecurityPolicy: false })); // Disable CSP as it can block external assets (avatars/STUN) unless configured deeply
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 mins
+  max: 50, // limit each IP to 50 requests per window
+  message: { error: 'Too many requests, please try again later.' }
+});
 
 app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
@@ -42,7 +53,7 @@ function saveDB(db) {
 }
 
 // ─── Auth Endpoints ──────────────────────────────────────────────────────────
-app.post('/api/subscribe', (req, res) => {
+app.post('/api/subscribe', authLimiter, (req, res) => {
   const { userId, subscription } = req.body;
   const db = loadDB();
   const index = db.users.findIndex(u => u.id === userId);
@@ -97,7 +108,7 @@ async function sendPush(toId, payload) {
   res.json({ user: safeUser, token: safeUser.id });
 });
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', authLimiter, async (req, res) => {
   const { username, password } = req.body;
   const db = loadDB();
   const user = db.users.find(u => u.username.toLowerCase() === username.toLowerCase());
