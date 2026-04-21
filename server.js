@@ -5,8 +5,6 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import webPush from 'web-push';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 
 
@@ -22,17 +20,7 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-const ALLOWED_ORIGINS = true; // Allow all origins to prevent 'Failed to fetch' CORS errors
-
-app.use(helmet({ contentSecurityPolicy: false })); // Disable CSP as it can block external assets (avatars/STUN) unless configured deeply
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 mins
-  max: 50, // limit each IP to 50 requests per window
-  message: { error: 'Too many requests, please try again later.' }
-});
-
-app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
@@ -83,7 +71,7 @@ async function sendPush(toId, payload) {
   }
 }
 
-app.post('/api/register', authLimiter, async (req, res) => {
+app.post('/api/register', async (req, res) => {
   const { username, password, displayName } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
@@ -107,7 +95,7 @@ app.post('/api/register', authLimiter, async (req, res) => {
   res.json({ user: safeUser, token: safeUser.id });
 });
 
-app.post('/api/login', authLimiter, async (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   const db = loadDB();
   const user = db.users.find(u => u.username.toLowerCase() === username.toLowerCase());

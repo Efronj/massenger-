@@ -424,18 +424,26 @@ function App() {
     } catch { return def; }
   };
 
-  // --- Stability Refactor ---
   const [hasError, setHasError] = useState(false);
   useEffect(() => {
-    const handleError = (e) => { console.error('App Crash:', e); setHasError(true); };
+    const handleError = (e) => { 
+      console.error('App Crash Log:', e); 
+      setHasError(true); 
+    };
     window.addEventListener('error', handleError);
     return () => window.removeEventListener('error', handleError);
   }, []);
 
   const [user, setUser] = useState(() => {
-    try { return getSafeJSON('m_user'); } catch { return null; }
+    try { 
+      const raw = localStorage.getItem('m_user');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return (parsed && typeof parsed === 'object' && parsed.id) ? parsed : null;
+    } catch { return null; }
   });
   const [token, setToken] = useState(() => localStorage.getItem('m_token'));
+
   
   const [contacts, setContacts] = useState(() => {
     try { return getSafeJSON('m_contacts', []); } catch { return []; }
@@ -464,11 +472,11 @@ function App() {
 
   // Handle refresh: If there's an active peer, load their messages
   useEffect(() => {
-    if (activePeer && user) {
+    if (user && activePeer && activePeer.id) {
       loadMessages(activePeer.id);
-      if (window.innerWidth < 768) setView('chat');
     }
-  }, []);
+  }, [user]);
+
   
   const [activeCall, setActiveCall] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
@@ -648,12 +656,13 @@ function App() {
   };
 
   if (hasError) return (
-    <div style={{ padding: 40, textAlign: 'center', background: '#111b21', color: 'white', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-      <h2>Something went wrong</h2>
-      <p>Please try clearing your browser cache and refreshing.</p>
-      <button onClick={() => { localStorage.clear(); window.location.reload(); }} style={{ background: '#00a884', padding: '10px 20px', borderRadius: 8, marginTop: 20 }}>Clear & Restart</button>
+    <div style={{ padding: 40, textAlign: 'center', background: '#900', color: 'white', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <h1>Technical Error Detected</h1>
+      <p>The app encountered an unexpected issue.</p>
+      <button onClick={() => { localStorage.clear(); window.location.reload(); }} style={{ background: 'white', color: 'black', padding: '12px 24px', borderRadius: 8, marginTop: 20, fontWeight: 'bold' }}>Clear Memory & Restart</button>
     </div>
   );
+
 
   if (!user) return <AuthScreen onAuth={onAuth} />;
 
