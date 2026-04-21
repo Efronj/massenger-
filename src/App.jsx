@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  MessageSquare, Search, Phone, Video, MoreVertical, Mic, MicOff,
-  VideoOff, Video as VideoIcon, Monitor, PhoneOff, Send, X, LogOut,
+  VideoOff, Video as VideoIcon, Monitor, PhoneOff, Send, X, LogOut, Trash2,
   PhoneIncoming, Check, CheckCheck, Loader2, ChevronLeft, Settings, User, Image, Camera
 } from 'lucide-react';
 
@@ -150,7 +149,17 @@ function ProfileSettings({ user, onClose, onUpdate }) {
 
   const fileInputRef = useRef(null);
 
+  const deleteAccount = async () => {
+    if (!window.confirm('CRITICAL: Delete your account and all data permanently?')) return;
+    try {
+      await fetch(`${API}/api/user/${user.id}`, { method: 'DELETE' });
+      localStorage.clear();
+      window.location.reload();
+    } catch (err) { alert('Failed to delete'); }
+  };
+
   const save = async () => {
+
     if (!displayName.trim()) return alert('Name cannot be empty');
     setLoading(true);
     try {
@@ -262,10 +271,12 @@ function ProfileSettings({ user, onClose, onUpdate }) {
             />
           </div>
         </div>
-        <div className="modal-footer" style={{ padding: '12px 20px', display: 'flex', justifySelf: 'flex-end', justifyContent: 'flex-end', gap: '10px', background: 'var(--bg-input)' }}>
+    <div className="modal-footer" style={{ padding: '12px 20px', display: 'flex', justifySelf: 'flex-end', justifyContent: 'flex-end', gap: '10px', background: 'var(--bg-input)' }}>
+          <button className="btn-cancel" style={{ color: 'var(--danger)', fontWeight: '500', fontSize: '13px', marginRight: 'auto' }} onClick={deleteAccount}>Delete Account</button>
           <button className="btn-cancel" style={{ color: 'var(--text-muted)', fontWeight: '500', fontSize: '14px' }} onClick={onClose}>Cancel</button>
           <button className="btn-save" style={{ background: 'var(--primary)', color: 'white', padding: '8px 20px', borderRadius: '8px', fontWeight: '600', fontSize: '14px' }} onClick={save} disabled={loading}>{loading ? 'Wait...' : 'Save Changes'}</button>
         </div>
+
       </div>
     </div>
   );
@@ -610,6 +621,12 @@ function App() {
             setMessages(prev => [...prev, msg]);
           }
         }
+        if (data.type === 'message-deleted') {
+          setMessages(prev => prev.filter(m => m.id !== data.msgId));
+        }
+        if (data.type === 'messages-seen') {
+          setMessages(prev => prev.map(m => m.from === user.id ? { ...m, seen: true } : m));
+        }
         // Signaling
         if (data.type === 'call-request') setIncomingCall(data);
         if (data.type === 'call-decline' || data.type === 'call-end') { setActiveCall(null); setIncomingCall(null); }
@@ -662,7 +679,9 @@ function App() {
       return arr;
     });
     loadMessages(peer.id);
+    wsRef.current?.send(JSON.stringify({ type: 'read-messages', from: peer.id, to: user.id }));
   };
+
 
   const send = (e) => {
     e?.preventDefault();
@@ -801,11 +820,32 @@ function App() {
             <div className="messages-scroll">
               {messages.map((m, i) => (
                 <div key={m.id} className={`msg-row ${m.from === user.id ? 'out' : 'in'}`}>
-                  <div className="msg-bubble">{m.text}<div className="msg-meta">{timeStr(m.timestamp)}</div></div>
+                  <div 
+                    className="msg-bubble"
+                    onContextMenu={(e) => {
+                      if (m.from === user.id) {
+                        e.preventDefault();
+                        if (window.confirm('Delete message for everyone?')) {
+                          wsRef.current.send(JSON.stringify({ type: 'delete-message', msgId: m.id, from: user.id }));
+                        }
+                      }
+                    }}
+                  >
+                    {m.text}
+                    <div className="msg-meta">
+                      {timeStr(m.timestamp)}
+                      {m.from === user.id && (
+                        <span style={{ marginLeft: 4, color: m.seen ? '#34b7f1' : 'rgba(255,255,255,0.4)' }}>
+                          {m.seen ? <CheckCheck size={14} /> : <Check size={14} />}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
               <div ref={messagesEndRef} />
             </div>
+
             <form className="chat-input-bar" onSubmit={send}>
               <div className="msg-input-wrap">
                 <textarea placeholder="Message" value={msgInput} rows={1} onChange={e => setMsgInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} />

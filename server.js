@@ -141,7 +141,17 @@ app.put('/api/user/profile', (req, res) => {
   res.json(safeUser);
 });
 
+app.delete('/api/user/:id', async (req, res) => {
+  const { id } = req.params;
+  const db = loadDB();
+  db.users = db.users.filter(u => u.id !== id);
+  db.messages = db.messages.filter(m => m.from !== id && m.to !== id);
+  saveDB(db);
+  res.json({ success: true });
+});
+
 // ─── Messages Endpoints ───────────────────────────────────────────────────────
+
 app.get('/api/messages/:userId/:otherId', (req, res) => {
   const { userId, otherId } = req.params;
   const db = loadDB();
@@ -182,11 +192,19 @@ wss.on('connection', (ws) => {
     // ── Chat Message ──
     if (data.type === 'message') {
       const db = loadDB();
-      const msg = { id: uuidv4(), from: data.from, to: data.to, text: data.text, timestamp: Date.now() };
+      const msg = { 
+        id: uuidv4(), 
+        from: data.from, 
+        to: data.to, 
+        text: data.text, 
+        timestamp: Date.now(),
+        seen: false 
+      };
       db.messages.push(msg);
       saveDB(db);
       
       const targetUser = db.users.find(u => u.id === data.to);
+
       const sender = db.users.find(u => u.id === data.from);
 
       broadcast(data.to, { type: 'message', msg });
@@ -202,7 +220,35 @@ wss.on('connection', (ws) => {
       }
     }
 
+    if (data.type === 'read-messages') {
+      const db = loadDB();
+      let changed = false;
+      db.messages.forEach(m => {
+        if (m.from === data.from && m.to === data.to && !m.seen) {
+          m.seen = true;
+          changed = true;
+        }
+      });
+      if (changed) {
+        saveDB(db);
+        broadcast(data.from, { type: 'messages-seen', senderId: data.to }); // Notify the sender
+      }
+    }
+
+    if (data.type === 'delete-message') {
+      const db = loadDB();
+      const msgIdx = db.messages.findIndex(m => m.id === data.msgId && m.from === data.from);
+      if (msgIdx !== -1) {
+        const msg = db.messages[msgIdx];
+        db.messages.splice(msgIdx, 1);
+        saveDB(db);
+        broadcast(msg.to, { type: 'message-deleted', msgId: data.msgId });
+        broadcast(msg.from, { type: 'message-deleted', msgId: data.msgId });
+      }
+    }
+
     if (data.type === 'call-request') {
+
       broadcast(data.to, { type: 'call-request', from: data.from, callerInfo: data.callerInfo, callType: data.callType });
       
       if (!clients.has(data.to)) {
