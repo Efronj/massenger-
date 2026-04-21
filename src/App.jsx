@@ -460,12 +460,9 @@ function App() {
   const [token, setToken] = useState(() => localStorage.getItem('m_token'));
 
   
-  const [contacts, setContacts] = useState(() => {
-    try { return getSafeJSON('m_contacts', []); } catch { return []; }
-  });
-  const [activePeer, setActivePeer] = useState(() => {
-    try { return getSafeJSON('m_activePeer'); } catch { return null; }
-  });
+  const [contacts, setContacts] = useState([]);
+  const [activePeer, setActivePeer] = useState(null);
+
 
   const [messages, setMessages] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState(new Set());
@@ -480,20 +477,35 @@ function App() {
   useEffect(() => { activePeerRef.current = activePeer; }, [activePeer]);
 
 
+  // Handle account switching: Clear state when user ID changes
   useEffect(() => {
-    localStorage.setItem('m_contacts', JSON.stringify(contacts));
-  }, [contacts]);
-
-  useEffect(() => {
-    localStorage.setItem('m_activePeer', JSON.stringify(activePeer));
-  }, [activePeer]);
-
-  // Handle refresh: If there's an active peer, load their messages
-  useEffect(() => {
-    if (user && activePeer && activePeer.id) {
-      loadMessages(activePeer.id);
+    if (user?.id) {
+      // Re-load data for the new user
+      const savedContacts = getSafeJSON(`m_contacts_${user.id}`, []);
+      setContacts(savedContacts);
+      const savedPeer = getSafeJSON(`m_activePeer_${user.id}`);
+      setActivePeer(savedPeer);
+      if (savedPeer) loadMessages(savedPeer.id);
+      else setMessages([]);
+    } else {
+      // Wiped state when logged out
+      setContacts([]);
+      setActivePeer(null);
+      setMessages([]);
     }
-  }, [user]);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`m_contacts_${user.id}`, JSON.stringify(contacts));
+    }
+  }, [contacts, user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`m_activePeer_${user.id}`, JSON.stringify(activePeer));
+    }
+  }, [activePeer, user?.id]);
 
   
   const [activeCall, setActiveCall] = useState(null);
