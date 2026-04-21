@@ -114,6 +114,17 @@ function ProfileSettings({ user, onClose, onUpdate }) {
   const [avatar, setAvatar] = useState(user.avatar);
   const [loading, setLoading] = useState(false);
 
+  const onFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setAvatar(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const fileInputRef = useRef(null);
+
   const save = async () => {
     setLoading(true);
     try {
@@ -144,7 +155,13 @@ function ProfileSettings({ user, onClose, onUpdate }) {
             <div className="avatar-img" style={{ backgroundImage: `url(${avatar})`, backgroundColor: colorFor(displayName) }}>
               {!avatar && getInitial(displayName)}
             </div>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Choose an avatar</p>
+            
+            <input type="file" ref={fileInputRef} onChange={onFileChange} style={{ display: 'none' }} accept="image/*" />
+            <button className="auth-submit" style={{ padding: '8px 16px', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: 'auto' }} onClick={() => fileInputRef.current.click()}>
+              <Camera size={16} /> Upload Photo
+            </button>
+
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 10 }}>Or pick a character:</p>
             <div className="avatar-selector">
               {DEFAULT_AVATARS.map(url => (
                 <div 
