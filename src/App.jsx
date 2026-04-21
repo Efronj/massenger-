@@ -390,14 +390,30 @@ function App() {
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('m_user')));
   const [token, setToken] = useState(() => localStorage.getItem('m_token'));
   
-  const [contacts, setContacts] = useState([]);
-  const [activePeer, setActivePeer] = useState(null);
+  const [contacts, setContacts] = useState(() => JSON.parse(localStorage.getItem('m_contacts') || '[]'));
+  const [activePeer, setActivePeer] = useState(() => JSON.parse(localStorage.getItem('m_activePeer') || 'null'));
   const [messages, setMessages] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('m_contacts', JSON.stringify(contacts));
+  }, [contacts]);
+
+  useEffect(() => {
+    localStorage.setItem('m_activePeer', JSON.stringify(activePeer));
+  }, [activePeer]);
+
+  // Handle refresh: If there's an active peer, load their messages
+  useEffect(() => {
+    if (activePeer && user) {
+      loadMessages(activePeer.id);
+      if (window.innerWidth < 768) setView('chat');
+    }
+  }, []);
   
   const [activeCall, setActiveCall] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
@@ -502,15 +518,23 @@ function App() {
     return () => clearTimeout(t);
   }, [search]);
 
+  const loadMessages = async (peerId) => {
+    if (!user) return;
+    const res = await fetch(`${API}/api/messages/${user.id}/${peerId}`);
+    const msgs = await res.json();
+    setMessages(msgs);
+  };
+
   const openChat = async (peer) => {
     setActivePeer(peer);
     setView('chat');
     setSearch('');
     // Ensure in contacts
-    setContacts(prev => prev.find(c => c.id === peer.id) ? prev : [peer, ...prev]);
-    const res = await fetch(`${API}/api/messages/${user.id}/${peer.id}`);
-    const msgs = await res.json();
-    setMessages(msgs);
+    setContacts(prev => {
+      if (prev.find(c => c.id === peer.id)) return prev;
+      return [peer, ...prev];
+    });
+    loadMessages(peer.id);
   };
 
   const send = (e) => {
@@ -556,8 +580,9 @@ function App() {
         </div>
         <div className="search-bar">
           <div className="search-inner">
-            {isSearching ? <Loader size={16} className="spin" /> : <Search size={16} />}
+            <Search size={16} />
             <input placeholder="Search username..." value={search} onChange={e => setSearch(e.target.value)} />
+            {search && <button className="clear-search-btn" onClick={() => setSearch('')}><X size={14} /></button>}
           </div>
         </div>
         <div className="contact-list">
