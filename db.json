@@ -1,0 +1,21 @@
+{
+  "users": [
+    {
+      "id": "064ae5b9-ce8b-4e65-b593-f4dd6f4c0d10",
+      "username": "testuser",
+      "displayName": "Test User",
+      "password": "$2b$10$IO4gYqk2QtX0HqfQkrgKQ.JAJwkwKXRkNb/.hEANwhnOONcru15s2",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Aidan",
+      "createdAt": 1776751378585
+    },
+    {
+      "id": "official-support-id",
+      "username": "support",
+      "displayName": "Massenger Support",
+      "password": "no-login-needed",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Support",
+      "createdAt": 1776751378585
+    }
+  ],
+  "messages": []
+}

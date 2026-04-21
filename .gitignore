@@ -16,7 +16,7 @@ dist-ssr
 .env.production
 
 # Database file - don't commit user data
-db.json
+# db.json
 
 # Editor directories and files
 .vscode/*
