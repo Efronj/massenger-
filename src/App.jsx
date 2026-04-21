@@ -43,7 +43,11 @@ function colorFor(name) { return colors[(name?.charCodeAt(0) || 0) % colors.leng
 const RTC_CONFIG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:global.stun.twilio.com:3478?transport=udp' }
   ]
 };
 
@@ -83,7 +87,7 @@ function AuthScreen({ onAuth }) {
     <div className="auth-screen">
       <div className="auth-card">
         <div className="auth-logo">
-          <div className="auth-logo-icon"><MessageSquare size={28} color="white" /></div>
+          <img src="/logo.png" alt="Massenger" style={{ width: 60, height: 60, borderRadius: 15, marginBottom: 12 }} />
           <h1>Massenger</h1>
         </div>
         <div className="auth-tabs">
@@ -694,7 +698,11 @@ function App() {
             </form>
           </>
         ) : (
-          <div className="empty-chat"><div className="empty-chat-icon"><MessageSquare size={52} color="var(--primary)" /></div><h2>Massenger</h2><p>Select a chat to start messaging</p></div>
+          <div className="empty-chat">
+            <div className="empty-chat-icon"><img src="/logo.png" alt="Massenger" style={{ width: 80, height: 80, borderRadius: 20 }} /></div>
+            <h2>Massenger</h2>
+            <p>Select a chat to start messaging</p>
+          </div>
         )}
       </div>
     </div>
