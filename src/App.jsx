@@ -318,7 +318,21 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming }) {
       const pc = new RTCPeerConnection(RTC_CONFIG);
       pcRef.current = pc;
       wsRef.current._pc = pc;
-      wsRef.current._iceBuffer = [];
+
+      // Handle buffered offer if it arrived while we were init media
+      if (wsRef.current._offerBuffer) {
+        const data = wsRef.current._offerBuffer;
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        const ans = await pc.createAnswer();
+        await pc.setLocalDescription(ans);
+        wsRef.current.send(JSON.stringify({ type: 'answer', to: data.from, answer: ans }));
+        wsRef.current._offerBuffer = null;
+        if (wsRef.current._iceBuffer) {
+          wsRef.current._iceBuffer.forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {}));
+          wsRef.current._iceBuffer = [];
+        }
+      }
+
 
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
@@ -648,37 +662,48 @@ function App() {
         }
         // Signaling
         if (data.type === 'call-request') setIncomingCall(data);
-        if (data.type === 'call-decline' || data.type === 'call-end') { setActiveCall(null); setIncomingCall(null); }
+        if (data.type === 'call-end' || data.type === 'call-decline') { 
+          setActiveCall(null); 
+          setIncomingCall(null); 
+        }
+        
         if (data.type === 'call-accept' && wsRef.current._pc) {
           const pc = wsRef.current._pc;
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
           wsRef.current.send(JSON.stringify({ type: 'offer', to: data.from, offer }));
         }
-        if (data.type === 'offer' && wsRef.current._pc) {
-          const pc = wsRef.current._pc;
-          await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-          const ans = await pc.createAnswer();
-          await pc.setLocalDescription(ans);
-          wsRef.current.send(JSON.stringify({ type: 'answer', to: data.from, answer: ans }));
-          // Handle buffered candidates
-          if (wsRef.current._iceBuffer) {
-            wsRef.current._iceBuffer.forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {}));
-            wsRef.current._iceBuffer = [];
+
+        if (data.type === 'offer') {
+          if (wsRef.current._pc) {
+            const pc = wsRef.current._pc;
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            const ans = await pc.createAnswer();
+            await pc.setLocalDescription(ans);
+            wsRef.current.send(JSON.stringify({ type: 'answer', to: data.from, answer: ans }));
+            if (wsRef.current._iceBuffer) {
+              wsRef.current._iceBuffer.forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {}));
+              wsRef.current._iceBuffer = [];
+            }
+          } else {
+            wsRef.current._offerBuffer = data;
           }
         }
+
         if (data.type === 'answer' && wsRef.current._pc) {
           await wsRef.current._pc.setRemoteDescription(new RTCSessionDescription(data.answer));
         }
+
         if (data.type === 'ice-candidate') {
           const pc = wsRef.current._pc;
           if (pc && pc.remoteDescription) {
             pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(() => {});
-          } else if (wsRef.current) {
+          } else {
             if (!wsRef.current._iceBuffer) wsRef.current._iceBuffer = [];
             wsRef.current._iceBuffer.push(data.candidate);
           }
         }
+
 
       } catch (err) { console.error('WS Message Error:', err); }
     };
