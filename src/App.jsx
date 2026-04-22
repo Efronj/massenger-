@@ -530,9 +530,10 @@ function App() {
   
   const messagesEndRef = useRef(null);
   const searchInputRef = useRef(null);
-  const recvSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2357/2357-preview.mp3'));
+  const recvSound = useRef(new Audio('https://cdn.pixabay.com/audio/2022/03/15/audio_7833324f64.mp3')); // Professional Pop
   const sentSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3'));
-  const ringSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/1360/1360-preview.mp3'));
+  const ringSound = useRef(new Audio('https://cdn.pixabay.com/audio/2024/02/09/audio_66723f5451.mp3')); // Premium Ringtone
+
 
   useEffect(() => {
     if (user && window.innerWidth < 768) {
