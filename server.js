@@ -203,10 +203,15 @@ wss.on('connection', (ws) => {
       myUserId = data.userId;
       clients.set(myUserId, ws);
 
-      // Broadcast online status to everyone
+      // Tell the user who is currently online
+      const onlineList = Array.from(clients.keys());
+      ws.send(JSON.stringify({ type: 'online-list', users: onlineList }));
+
+      // Tell everyone else this user joined
       broadcastPresence(myUserId, true);
       return;
     }
+
 
     // ── Chat Message ──
     if (data.type === 'message') {

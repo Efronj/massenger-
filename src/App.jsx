@@ -640,6 +640,10 @@ function App() {
             return next;
           });
         }
+        if (data.type === 'online-list') {
+          setOnlineUsers(new Set(data.users));
+        }
+
         if (data.type === 'message' || data.type === 'message_sent') {
           const msg = data.msg;
           const otherId = data.type === 'message' ? msg.from : msg.to;
