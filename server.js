@@ -8,9 +8,10 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import webPush from 'web-push';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
-import rateLimit from 'express-rate-limit';
+import { rateLimit } from 'express-rate-limit';
 
 const authLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 20 });
+
 
 
 
