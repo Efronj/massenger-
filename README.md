@@ -9,7 +9,11 @@ A full-stack real-time messaging app with video/audio calls and screen sharing �
 - ✅ Video calls with WebRTC
 - ✅ Audio-only calls
 - ✅ Screen sharing
+- ✅ Image & File sharing
+- ✅ Push Notifications (Service Worker)
+- ✅ Real-time Seen/Read receipts (Blue ticks)
 - ✅ Online/offline presence
+
 
 ## Tech Stack
 - **Frontend**: React + Vite → Vercel
