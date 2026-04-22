@@ -330,20 +330,27 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming }) {
         if (remoteRef.current && e.streams[0]) {
           remoteRef.current.srcObject = e.streams[0];
           setConnected(true);
+          remoteRef.current.play().catch(() => {});
         }
       };
 
       pc.oniceconnectionstatechange = () => {
-        if (pc.iceConnectionState === 'connected') setConnected(true);
-        if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+        const s = pc.iceConnectionState;
+        if (s === 'connected' || s === 'completed') setConnected(true);
+        if (s === 'failed') pc.restartIce();
+      };
+      
+      // Watchdog: If not connected in 6s, attempt ICE restart
+      const watchdog = setTimeout(() => {
+        if (!connected && pc.iceConnectionState !== 'connected') {
           pc.restartIce();
         }
-      };
+      }, 6000);
 
       // ADD TRACKS
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
-      // HANDLE BUFFERED OFFER (NOW HANDLERS ARE READY)
+      // HANDLE BUFFERED OFFER
       if (wsRef.current?._offerBuffer) {
         const data = wsRef.current._offerBuffer;
         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
@@ -352,10 +359,15 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming }) {
         wsRef.current.send(JSON.stringify({ type: 'answer', to: data.from, answer: ans }));
         wsRef.current._offerBuffer = null;
         if (wsRef.current._iceBuffer) {
-          wsRef.current._iceBuffer.forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {}));
+          for (let c of wsRef.current._iceBuffer) {
+            await pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+          }
           wsRef.current._iceBuffer = [];
         }
       }
+      
+      return () => clearTimeout(watchdog);
+
 
 
       // If we are the one who accepted, we just wait for offer
@@ -696,14 +708,18 @@ function App() {
             const ans = await pc.createAnswer();
             await pc.setLocalDescription(ans);
             wsRef.current.send(JSON.stringify({ type: 'answer', to: data.from, answer: ans }));
+
             if (wsRef.current._iceBuffer) {
-              wsRef.current._iceBuffer.forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {}));
+              for (let c of wsRef.current._iceBuffer) {
+                await pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+              }
               wsRef.current._iceBuffer = [];
             }
           } else {
             wsRef.current._offerBuffer = data;
           }
         }
+
 
         if (data.type === 'answer' && wsRef.current._pc) {
           await wsRef.current._pc.setRemoteDescription(new RTCSessionDescription(data.answer));
