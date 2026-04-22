@@ -319,8 +319,32 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming }) {
       pcRef.current = pc;
       wsRef.current._pc = pc;
 
-      // Handle buffered offer if it arrived while we were init media
-      if (wsRef.current._offerBuffer) {
+      // SET HANDLERS FIRST
+      pc.onicecandidate = (e) => {
+        if (e.candidate) {
+          wsRef.current?.send(JSON.stringify({ type: 'ice-candidate', to: peer.id, candidate: e.candidate }));
+        }
+      };
+
+      pc.ontrack = (e) => {
+        if (remoteRef.current && e.streams[0]) {
+          remoteRef.current.srcObject = e.streams[0];
+          setConnected(true);
+        }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        if (pc.iceConnectionState === 'connected') setConnected(true);
+        if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+          pc.restartIce();
+        }
+      };
+
+      // ADD TRACKS
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+      // HANDLE BUFFERED OFFER (NOW HANDLERS ARE READY)
+      if (wsRef.current?._offerBuffer) {
         const data = wsRef.current._offerBuffer;
         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
         const ans = await pc.createAnswer();
@@ -333,21 +357,6 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming }) {
         }
       }
 
-
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-      pc.ontrack = (e) => {
-        if (remoteRef.current && e.streams[0]) {
-          remoteRef.current.srcObject = e.streams[0];
-          setConnected(true);
-        }
-      };
-
-      pc.onicecandidate = (e) => {
-        if (e.candidate) {
-          wsRef.current?.send(JSON.stringify({ type: 'ice-candidate', to: peer.id, candidate: e.candidate }));
-        }
-      };
 
       // If we are the one who accepted, we just wait for offer
       // If we are the one who started, we Wait for 'call-accept' before sending offer
