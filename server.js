@@ -77,9 +77,9 @@ async function sendPush(toId, payload) {
 }
 
 app.post('/api/register', async (req, res) => {
-  const { username, displayName } = req.body;
-
+  const { username, password, displayName } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+
 
   const db = loadDB();
   // Case-insensitive check and trim whitespace
