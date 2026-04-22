@@ -268,10 +268,15 @@ wss.on('connection', (ws) => {
     }
 
     if (data.type === 'call-request') {
-
-      broadcast(data.to, { type: 'call-request', from: data.from, callerInfo: data.callerInfo, callType: data.callType });
+      broadcast(data.to, { 
+        type: 'call-request', 
+        from: myUserId, 
+        callerInfo: data.callerInfo, 
+        callType: data.callType 
+      });
       
       if (!clients.has(data.to)) {
+
         sendPush(data.to, {
           title: `Incoming ${data.callType} call`,
           body: `${data.callerInfo.displayName} is calling you...`,
