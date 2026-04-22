@@ -1,4 +1,6 @@
+/* global process */
 import express from 'express';
+
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import cors from 'cors';
@@ -6,6 +8,9 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import webPush from 'web-push';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
+import rateLimit from 'express-rate-limit';
+
+const authLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 20 });
 
 
 
@@ -72,7 +77,8 @@ async function sendPush(toId, payload) {
 }
 
 app.post('/api/register', async (req, res) => {
-  const { username, password, displayName } = req.body;
+  const { username, displayName } = req.body;
+
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
   const db = loadDB();
@@ -126,8 +132,9 @@ app.get('/api/user/:id', (req, res) => {
   const db = loadDB();
   const user = db.users.find(u => u.id === req.params.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  const { password, ...safeUser } = user;
+  const { password: _password, ...safeUser } = user;
   res.json(safeUser);
+
 });
 
 app.put('/api/user/profile', (req, res) => {
@@ -139,8 +146,9 @@ app.put('/api/user/profile', (req, res) => {
   db.users[index] = { ...db.users[index], displayName, avatar };
   saveDB(db);
 
-  const { password, ...safeUser } = db.users[index];
+  const { password: _password, ...safeUser } = db.users[index];
   res.json(safeUser);
+
 });
 
 // ─── ADMIN: Hard Reset (Wipe all data) ───

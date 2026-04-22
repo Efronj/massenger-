@@ -44,7 +44,8 @@ const VAPID_PUBLIC_KEY = 'BPFgOwZlOvfolHvuEcfpGk9Qewhd8I-Uo5r47jWOc6-3IUlo3TEwE0
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
   for (let i = 0; i < rawData.length; ++i) {
@@ -156,7 +157,9 @@ function ProfileSettings({ user, onClose, onUpdate }) {
       await fetch(`${API}/api/user/${user.id}`, { method: 'DELETE' });
       localStorage.clear();
       window.location.reload();
-    } catch (err) { alert('Failed to delete'); }
+    } catch (e) { alert('Failed to delete'); }
+
+
   };
 
   const save = async () => {
@@ -284,7 +287,8 @@ function ProfileSettings({ user, onClose, onUpdate }) {
 }
 
 // ─── Video Call Overlay Component ───
-function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming, initialRemoteStream }) {
+function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming }) {
+
   const localRef = useRef(null);
   const remoteRef = useRef(null);
   const pcRef = useRef(null);
@@ -452,44 +456,35 @@ function App() {
       return (parsed && typeof parsed === 'object' && parsed.id) ? parsed : null;
     } catch { return null; }
   });
-  const [token, setToken] = useState(() => localStorage.getItem('m_token'));
 
-  
-  const [contacts, setContacts] = useState([]);
-  const [activePeer, setActivePeer] = useState(null);
-
+  const [contacts, setContacts] = useState(() => {
+    if (!user?.id) return [];
+    return getSafeJSON(`m_contacts_${user.id}`, []);
+  });
+  const [activePeer, setActivePeer] = useState(() => {
+    if (!user?.id) return null;
+    return getSafeJSON(`m_activePeer_${user.id}`);
+  });
 
   const [messages, setMessages] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [toast, setToast] = useState(null); // { title: '', text: '', peer: {} }
   const activePeerRef = useRef(null);
 
   const wsRef = useRef(null);
   useEffect(() => { activePeerRef.current = activePeer; }, [activePeer]);
 
+  const loadMessages = useCallback(async (peerId) => {
+    if (!user) return;
+    const res = await fetch(`${API}/api/messages/${user.id}/${peerId}`);
+    const msgs = await res.json();
+    setMessages(msgs);
+  }, [user]);
 
-  // Handle account switching: Clear state when user ID changes
-  useEffect(() => {
-    if (user?.id) {
-      // Re-load data for the new user
-      const savedContacts = getSafeJSON(`m_contacts_${user.id}`, []);
-      setContacts(savedContacts);
-      const savedPeer = getSafeJSON(`m_activePeer_${user.id}`);
-      setActivePeer(savedPeer);
-      if (savedPeer) loadMessages(savedPeer.id);
-      else setMessages([]);
-    } else {
-      // Wiped state when logged out
-      setContacts([]);
-      setActivePeer(null);
-      setMessages([]);
-    }
-  }, [user?.id]);
-
+  // Sync state to local storage when it changes
   useEffect(() => {
     if (user?.id) {
       localStorage.setItem(`m_contacts_${user.id}`, JSON.stringify(contacts));
@@ -501,6 +496,14 @@ function App() {
       localStorage.setItem(`m_activePeer_${user.id}`, JSON.stringify(activePeer));
     }
   }, [activePeer, user?.id]);
+
+  // Load message for active peer if exists
+  useEffect(() => {
+    if (activePeer) {
+      Promise.resolve().then(() => loadMessages(activePeer.id));
+    }
+  }, [activePeer, loadMessages]);
+
 
   
   const [activeCall, setActiveCall] = useState(null);
@@ -558,10 +561,11 @@ function App() {
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const onAuth = (u, t) => {
-    setUser(u); setToken(t);
+    setUser(u);
     localStorage.setItem('m_user', JSON.stringify(u));
     localStorage.setItem('m_token', t);
   };
+
 
   const logout = () => {
     localStorage.clear();
@@ -679,23 +683,22 @@ function App() {
 
   // ── Search ──
   useEffect(() => {
-    if (!search.trim()) return setSearchResults([]);
+    if (!search.trim()) {
+      Promise.resolve().then(() => setSearchResults([]));
+      return;
+    }
+
+
     const t = setTimeout(async () => {
-      setIsSearching(true);
       const res = await fetch(`${API}/api/users/search?q=${search}&myId=${user.id}`);
       const d = await res.json();
       setSearchResults(d);
-      setIsSearching(false);
     }, 400);
     return () => clearTimeout(t);
-  }, [search]);
+  }, [search, user?.id]);
 
-  const loadMessages = async (peerId) => {
-    if (!user) return;
-    const res = await fetch(`${API}/api/messages/${user.id}/${peerId}`);
-    const msgs = await res.json();
-    setMessages(msgs);
-  };
+
+
 
   const openChat = async (peer) => {
     setActivePeer(peer);
@@ -854,8 +857,9 @@ function App() {
               </div>
             </div>
             <div className="messages-scroll">
-              {messages.map((m, i) => (
+              {messages.map((m) => (
                 <div key={m.id} className={`msg-row ${m.from === user.id ? 'out' : 'in'}`}>
+
                   <div 
                     className="msg-bubble"
                     onContextMenu={(e) => {
