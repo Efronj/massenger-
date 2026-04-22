@@ -630,27 +630,28 @@ function App() {
           setContacts(prev => {
             const arr = [...prev];
             const idx = arr.findIndex(c => c.id === otherId);
+            const previewText = msg.image ? '📷 Image' : msg.text;
+
             if (idx === -1) {
               const newPeer = { 
                 id: otherId, 
                 displayName: msg.senderInfo?.displayName || 'Unknown', 
                 avatar: msg.senderInfo?.avatar || '',
                 unreadCount: activePeerRef.current?.id === otherId ? 0 : 1,
-                lastMsg: msg.text,
+                lastMsg: previewText,
                 lastTs: msg.timestamp
               };
               arr.unshift(newPeer);
               if (activePeerRef.current?.id !== otherId) {
-                setToast({ title: newPeer.displayName, text: msg.text, peer: newPeer });
+                setToast({ title: newPeer.displayName, text: previewText, peer: newPeer });
               }
             } else {
-
               if (activePeerRef.current?.id !== otherId) {
-                setToast({ title: arr[idx].displayName, text: msg.text, peer: arr[idx] });
+                setToast({ title: arr[idx].displayName, text: previewText, peer: arr[idx] });
               }
               arr[idx] = { 
                 ...arr[idx], 
-                lastMsg: msg.text, 
+                lastMsg: previewText, 
                 lastTime: msg.timestamp,
                 unreadCount: (activePeerRef.current?.id === otherId) ? 0 : (arr[idx].unreadCount || 0) + 1
               };
@@ -660,11 +661,14 @@ function App() {
             return arr;
           });
 
-
           if (activePeerRef.current?.id === otherId) {
             setMessages(prev => [...prev, msg]);
+            if (data.type === 'message') {
+              wsRef.current?.send(JSON.stringify({ type: 'read-messages', from: otherId, to: user.id }));
+            }
           }
         }
+
         if (data.type === 'message-deleted') {
           setMessages(prev => prev.filter(m => m.id !== data.msgId));
         }
@@ -760,14 +764,34 @@ function App() {
   };
 
 
-  const send = (e) => {
+  const send = (e, customData = {}) => {
     e?.preventDefault();
-    if (!msgInput.trim() || !activePeer) return;
+    if (!msgInput.trim() && !customData.image || !activePeer) return;
     try {
-      wsRef.current.send(JSON.stringify({ type: 'message', from: user.id, to: activePeer.id, text: msgInput }));
+      wsRef.current.send(JSON.stringify({ 
+        type: 'message', 
+        from: user.id, 
+        to: activePeer.id, 
+        text: msgInput,
+        ...customData
+      }));
     } catch (err) { console.error(err); }
     setMsgInput('');
   };
+
+  const [uploading, setUploading] = useState(false);
+  const handleUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      send(null, { image: ev.target.result });
+      setUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
 
   useEffect(() => {
     if (toast) {
@@ -914,8 +938,10 @@ function App() {
                       }
                     }}
                   >
+                    {m.image && <img src={m.image} alt="Upload" className="msg-img" style={{ maxWidth: '100%', borderRadius: 8, marginBottom: 4, display: 'block' }} />}
                     {m.text}
                     <div className="msg-meta">
+
                       {timeStr(m.timestamp)}
                       {m.from === user.id && (
                         <span style={{ marginLeft: 4, color: m.seen ? '#34b7f1' : 'rgba(255,255,255,0.4)' }}>
@@ -930,11 +956,17 @@ function App() {
             </div>
 
             <form className="chat-input-bar" onSubmit={send}>
+              <button type="button" className="icon-btn" style={{ color: 'var(--primary)' }} onClick={() => document.getElementById('chat-file').click()} disabled={uploading}>
+                {uploading ? <Loader2 className="spin" size={20} /> : <Image size={20} />}
+              </button>
+              <input type="file" id="chat-file" hidden accept="image/*" onChange={handleUpload} />
+              
               <div className="msg-input-wrap">
-                <textarea placeholder="Message" value={msgInput} rows={1} onChange={e => setMsgInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} />
+                <textarea placeholder="Message" value={msgInput} rows={1} onChange={e => setMsgInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (msgInput.trim()) send(); } }} />
               </div>
               <button type="submit" className="send-btn" disabled={!msgInput.trim()}><Send size={20} /></button>
             </form>
+
           </>
         ) : (
           <div className="empty-chat">
