@@ -221,12 +221,13 @@ wss.on('connection', (ws) => {
       db.messages.push(msg);
       saveDB(db);
       
-      const targetUser = db.users.find(u => u.id === data.to);
-
       const sender = db.users.find(u => u.id === data.from);
+      const senderInfo = sender ? { displayName: sender.displayName, avatar: sender.avatar } : { displayName: 'Unknown', avatar: '' };
 
-      broadcast(data.to, { type: 'message', msg });
+      broadcast(data.to, { type: 'message', msg: { ...msg, senderInfo } });
       broadcast(data.from, { type: 'message_sent', msg });
+
+
       
       // If target user is offline, send push
       if (!clients.has(data.to) && sender) {

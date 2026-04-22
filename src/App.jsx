@@ -606,13 +606,20 @@ function App() {
             const arr = [...prev];
             const idx = arr.findIndex(c => c.id === otherId);
             if (idx === -1) {
-              fetch(`${API}/api/user/${otherId}`).then(r => r.json()).then(u => {
-                setContacts(p => p.find(x => x.id === u.id) ? p : [u, ...p]);
-                if (activePeerRef.current?.id !== otherId) {
-                  setToast({ title: u.displayName, text: msg.text, peer: u });
-                }
-              }).catch(() => {});
+              const newPeer = { 
+                id: otherId, 
+                displayName: msg.senderInfo?.displayName || 'Unknown', 
+                avatar: msg.senderInfo?.avatar || '',
+                unreadCount: activePeerRef.current?.id === otherId ? 0 : 1,
+                lastMsg: msg.text,
+                lastTs: msg.timestamp
+              };
+              arr.unshift(newPeer);
+              if (activePeerRef.current?.id !== otherId) {
+                setToast({ title: newPeer.displayName, text: msg.text, peer: newPeer });
+              }
             } else {
+
               if (activePeerRef.current?.id !== otherId) {
                 setToast({ title: arr[idx].displayName, text: msg.text, peer: arr[idx] });
               }
