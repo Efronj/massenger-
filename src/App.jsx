@@ -319,6 +319,15 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming }) {
       pcRef.current = pc;
       wsRef.current._pc = pc;
 
+      // Handle buffered ACCEPT
+      if (wsRef.current._acceptBuffer) {
+        const data = wsRef.current._acceptBuffer;
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        wsRef.current.send(JSON.stringify({ type: 'offer', to: data.from, offer }));
+        wsRef.current._acceptBuffer = null;
+      }
+
       // SET HANDLERS FIRST
       pc.onicecandidate = (e) => {
         if (e.candidate) {
@@ -615,6 +624,10 @@ function App() {
     if (!user) return;
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
+    ws._pc = null;
+    ws._offerBuffer = null;
+    ws._acceptBuffer = null;
+    ws._iceBuffer = [];
     ws.onopen = () => ws.send(JSON.stringify({ type: 'register', userId: user.id }));
     
     ws.onmessage = async (e) => {
@@ -694,12 +707,17 @@ function App() {
           setIncomingCall(null); 
         }
         
-        if (data.type === 'call-accept' && wsRef.current._pc) {
-          const pc = wsRef.current._pc;
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          wsRef.current.send(JSON.stringify({ type: 'offer', to: data.from, offer }));
+        if (data.type === 'call-accept') {
+          if (wsRef.current._pc) {
+            const pc = wsRef.current._pc;
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            wsRef.current.send(JSON.stringify({ type: 'offer', to: data.from, offer }));
+          } else {
+            wsRef.current._acceptBuffer = data;
+          }
         }
+
 
         if (data.type === 'offer') {
           if (wsRef.current._pc) {
