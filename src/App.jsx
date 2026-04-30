@@ -573,9 +573,9 @@ function App() {
   
   const messagesEndRef = useRef(null);
   const searchInputRef = useRef(null);
-  const recvSound = useRef(new Audio('https://upload.wikimedia.org/wikipedia/commons/1/15/Bicycle_bell.wav'));
-  const sentSound = useRef(new Audio('https://upload.wikimedia.org/wikipedia/commons/5/55/Bloop.ogg'));
-  const ringSound = useRef(new Audio('https://upload.wikimedia.org/wikipedia/commons/c/c6/Telephone_ringing.ogg'));
+  const recvSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3'));
+  const sentSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3'));
+  const ringSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3'));
 
 
   useEffect(() => {
@@ -870,6 +870,16 @@ function App() {
     }
   }, [toast]);
 
+  useEffect(() => {
+    if (incomingCall) {
+      ringSound.current.loop = true;
+      ringSound.current.play().catch(err => console.log('Autoplay blocked:', err));
+    } else {
+      ringSound.current.pause();
+      ringSound.current.currentTime = 0;
+    }
+  }, [incomingCall]);
+
 
   if (hasError) return (
     <div style={{ padding: 40, textAlign: 'center', background: '#111b21', color: 'white', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
@@ -888,6 +898,22 @@ function App() {
       {/* Modals */}
       {showSettings && <ProfileSettings user={user} onClose={() => setShowSettings(false)} onUpdate={u => { setUser(u); localStorage.setItem('m_user', JSON.stringify(u)); }} />}
       
+      {incomingCall && (
+        <div className="incoming-call-modal">
+          <div className="avatar-img" style={{ width: 44, height: 44, backgroundImage: `url(${incomingCall.callerInfo.avatar})`, backgroundColor: colorFor(incomingCall.callerInfo.displayName) }} />
+          <div className="incoming-info"><h3>{incomingCall.callerInfo.displayName}</h3><p>Incoming {incomingCall.callType} call...</p></div>
+          <div className="incoming-actions">
+            <button className="reject-btn" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-decline', to: incomingCall.callerInfo.id })); setIncomingCall(null); }}><X /></button>
+            <button className="accept-btn" onClick={() => { 
+              wsRef.current.send(JSON.stringify({ type: 'call-accept', to: incomingCall.callerInfo.id, from: user.id }));
+              setActiveCall({ peer: incomingCall.callerInfo, callType: incomingCall.callType, isIncoming: true }); 
+              setIncomingCall(null); 
+            }}><Phone /></button>
+          </div>
+        </div>
+      )}
+
+      {activeCall && <CallOverlay peer={activeCall.peer} callType={activeCall.callType} wsRef={wsRef} isIncoming={activeCall.isIncoming} onEnd={() => setActiveCall(null)} />}
 
       {/* Toast Notification */}
       {toast && (
@@ -977,6 +1003,8 @@ function App() {
                 </div>
               </div>
               <div className="chat-header-actions">
+                <button className="icon-btn green" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-request', to: activePeer.id, callerInfo: { id: user.id, displayName: user.displayName, avatar: user.avatar }, callType: 'audio' })); setActiveCall({ peer: activePeer, callType: 'audio', isIncoming: false }); }}><Phone size={18} /></button>
+                <button className="icon-btn green" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-request', to: activePeer.id, callerInfo: { id: user.id, displayName: user.displayName, avatar: user.avatar }, callType: 'video' })); setActiveCall({ peer: activePeer, callType: 'video', isIncoming: false }); }}><Video size={18} /></button>
               </div>
             </div>
             <div className="messages-scroll">
