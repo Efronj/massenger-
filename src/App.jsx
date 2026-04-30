@@ -888,23 +888,6 @@ function App() {
       {/* Modals */}
       {showSettings && <ProfileSettings user={user} onClose={() => setShowSettings(false)} onUpdate={u => { setUser(u); localStorage.setItem('m_user', JSON.stringify(u)); }} />}
       
-      {incomingCall && (
-        <div className="incoming-call-modal">
-          <div className="avatar-img" style={{ width: 44, height: 44, backgroundImage: `url(${incomingCall.callerInfo.avatar})`, backgroundColor: colorFor(incomingCall.callerInfo.displayName) }} />
-          <div className="incoming-info"><h3>{incomingCall.callerInfo.displayName}</h3><p>Incoming {incomingCall.callType} call...</p></div>
-          <div className="incoming-actions">
-            <button className="reject-btn" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-decline', to: incomingCall.callerInfo.id })); setIncomingCall(null); }}><X /></button>
-            <button className="accept-btn" onClick={() => { 
-              wsRef.current.send(JSON.stringify({ type: 'call-accept', to: incomingCall.callerInfo.id, from: user.id }));
-              setActiveCall({ peer: incomingCall.callerInfo, callType: incomingCall.callType, isIncoming: true }); 
-              setIncomingCall(null); 
-            }}><Phone /></button>
-
-          </div>
-        </div>
-      )}
-
-      {activeCall && <CallOverlay peer={activeCall.peer} callType={activeCall.callType} wsRef={wsRef} isIncoming={activeCall.isIncoming} onEnd={() => setActiveCall(null)} />}
 
       {/* Toast Notification */}
       {toast && (
@@ -994,14 +977,6 @@ function App() {
                 </div>
               </div>
               <div className="chat-header-actions">
-                <button className="icon-btn green" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-request', to: activePeer.id, callerInfo: { id: user.id, displayName: user.displayName, avatar: user.avatar }, callType: 'audio' })); setActiveCall({ peer: activePeer, callType: 'audio', isIncoming: false }); }}><Phone size={18} /></button>
-                <button className="icon-btn green" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-request', to: activePeer.id, callerInfo: { id: user.id, displayName: user.displayName, avatar: user.avatar }, callType: 'video' })); setActiveCall({ peer: activePeer, callType: 'video', isIncoming: false }); }}><Video size={18} /></button>
-                <button className="icon-btn" title="Clear Chat" onClick={async () => {
-                  if (window.confirm('Clear all messages with this user?')) {
-                    await fetch(`${API}/api/messages/${user.id}/${activePeer.id}`, { method: 'DELETE' });
-                    setMessages([]);
-                  }
-                }}><Trash2 size={18} /></button>
               </div>
             </div>
             <div className="messages-scroll">
@@ -1042,13 +1017,8 @@ function App() {
               </button>
               <input type="file" id="chat-file" hidden accept="image/*" onChange={handleUpload} />
               
-              <div className="msg-input-wrap" style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: 4 }}>
-                <div className="quick-emojis" style={{ display: 'flex', gap: 12, padding: '4px 8px 0', fontSize: 18, userSelect: 'none' }}>
-                  {['👍', '❤️', '😂', '😮', '😢', '😡'].map(emoji => (
-                    <span key={emoji} style={{ cursor: 'pointer', transition: 'transform 0.1s' }} onMouseDown={e => { e.preventDefault(); setMsgInput(prev => prev + emoji); }}>{emoji}</span>
-                  ))}
-                </div>
-                <textarea placeholder="Message" value={msgInput} rows={1} style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color: 'var(--text)', resize: 'none', padding: '0 8px', fontSize: 15 }} onChange={e => {
+              <div className="msg-input-wrap">
+                <textarea placeholder="Message" value={msgInput} rows={1} onChange={e => {
                   setMsgInput(e.target.value);
                   wsRef.current?.send(JSON.stringify({ type: 'typing', to: activePeer.id, userId: user.id }));
                 }} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (msgInput.trim()) send(); } }} />
