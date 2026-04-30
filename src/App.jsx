@@ -907,6 +907,13 @@ function App() {
     };
   }, [incomingCall]);
 
+  const stopRinging = () => {
+    if (ringSound.current) {
+      ringSound.current.pause();
+      ringSound.current.currentTime = 0;
+    }
+  };
+
 
   if (hasError) return (
     <div style={{ padding: 40, textAlign: 'center', background: '#111b21', color: 'white', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
@@ -930,8 +937,13 @@ function App() {
           <div className="avatar-img" style={{ width: 44, height: 44, backgroundImage: `url(${incomingCall.callerInfo.avatar})`, backgroundColor: colorFor(incomingCall.callerInfo.displayName) }} />
           <div className="incoming-info"><h3>{incomingCall.callerInfo.displayName}</h3><p>Incoming {incomingCall.callType} call...</p></div>
           <div className="incoming-actions">
-            <button className="reject-btn" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-decline', to: incomingCall.callerInfo.id })); setIncomingCall(null); }}><X /></button>
+            <button className="reject-btn" onClick={() => { 
+              stopRinging();
+              wsRef.current.send(JSON.stringify({ type: 'call-decline', to: incomingCall.callerInfo.id })); 
+              setIncomingCall(null); 
+            }}><X /></button>
             <button className="accept-btn" onClick={() => { 
+              stopRinging();
               wsRef.current.send(JSON.stringify({ type: 'call-accept', to: incomingCall.callerInfo.id, from: user.id }));
               setActiveCall({ peer: incomingCall.callerInfo, callType: incomingCall.callType, isIncoming: true }); 
               setIncomingCall(null); 
