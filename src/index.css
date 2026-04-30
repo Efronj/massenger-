@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 /* ─── Design Tokens ─── */
-:root {
+:root, .dark-theme {
   --bg: #111b21;
   --bg-panel: #202c33;
   --bg-sidebar: #111b21;
@@ -21,6 +21,21 @@
   --radius: 8px;
   --font: 'Inter', sans-serif;
   --unread: #00a884;
+}
+
+.light-theme {
+  --bg: #efeae2;
+  --bg-panel: #f0f2f5;
+  --bg-sidebar: #ffffff;
+  --bg-chat: #efeae2;
+  --bg-input: #ffffff;
+  --bg-hover: #f5f6f6;
+  --bg-msg-in: #ffffff;
+  --bg-msg-out: #d9fdd3;
+  --text: #111b21;
+  --text-muted: #667781;
+  --text-secondary: #54656f;
+  --border: #d1d7db;
 }
 
 /* ─── Reset ─── */

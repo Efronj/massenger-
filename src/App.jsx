@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   MessageSquare, Search, Phone, Video, MoreVertical, Mic, MicOff,
   VideoOff, Video as VideoIcon, Monitor, PhoneOff, Send, X, LogOut,
-  PhoneIncoming, Check, CheckCheck, Loader2, ChevronLeft, Settings, User, Image, Camera
+  PhoneIncoming, Check, CheckCheck, Loader2, ChevronLeft, Settings, User, Image, Camera, Sun, Moon, Trash2
 } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || 'https://massenger-iqw8.onrender.com';
@@ -28,14 +28,7 @@ const DEFAULT_AVATARS = [
 function timeStr(ts) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
-function dateStr(ts) {
-  const d = new Date(ts);
-  const today = new Date();
-  const diff = today - d;
-  if (diff < 86400000 && today.getDate() === d.getDate()) return 'Today';
-  if (diff < 172800000) return 'Yesterday';
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-}
+
 function getInitial(name) { return name ? name[0].toUpperCase() : '?'; }
 const colors = ['#00a884','#1877f2','#e53935','#7b1fa2','#f57c00','#00838f'];
 function colorFor(name) { return colors[(name?.charCodeAt(0) || 0) % colors.length]; }
@@ -157,7 +150,7 @@ function ProfileSettings({ user, onClose, onUpdate }) {
       await fetch(`${API}/api/user/${user.id}`, { method: 'DELETE' });
       localStorage.clear();
       window.location.reload();
-    } catch (e) { alert('Failed to delete'); }
+    } catch { alert('Failed to delete'); }
 
 
   };
@@ -319,14 +312,6 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming }) {
       pcRef.current = pc;
       wsRef.current._pc = pc;
 
-      // Handle buffered ACCEPT
-      if (wsRef.current._acceptBuffer) {
-        const data = wsRef.current._acceptBuffer;
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        wsRef.current.send(JSON.stringify({ type: 'offer', to: data.from, offer }));
-        wsRef.current._acceptBuffer = null;
-      }
 
       // SET HANDLERS FIRST
       pc.onicecandidate = (e) => {
@@ -359,6 +344,15 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming }) {
       // ADD TRACKS
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
+      // Handle buffered ACCEPT
+      if (wsRef.current._acceptBuffer) {
+        const data = wsRef.current._acceptBuffer;
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        wsRef.current.send(JSON.stringify({ type: 'offer', to: data.from, offer }));
+        wsRef.current._acceptBuffer = null;
+      }
+
       // HANDLE BUFFERED OFFER
       if (wsRef.current?._offerBuffer) {
         const data = wsRef.current._offerBuffer;
@@ -381,7 +375,11 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming }) {
 
       // If we are the one who accepted, we just wait for offer
       // If we are the one who started, we Wait for 'call-accept' before sending offer
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error('Media Error:', err); 
+      alert('Could not access camera or microphone. Please check browser permissions and ensure you are using HTTPS.');
+      end();
+    }
   };
 
 
@@ -390,8 +388,10 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming }) {
     return () => {
       localStreamRef.current?.getTracks().forEach(t => t.stop());
       pcRef.current?.close();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       delete wsRef.current._pc;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const end = () => {
@@ -512,6 +512,19 @@ function App() {
 
   const [messages, setMessages] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState(new Set());
+  const [typingUsers, setTypingUsers] = useState(new Set());
+  const [darkMode, setDarkMode] = useState(() => getSafeJSON('m_dark', true));
+
+  useEffect(() => {
+    localStorage.setItem('m_dark', JSON.stringify(darkMode));
+    if (darkMode) {
+      document.body.classList.add('dark-theme');
+      document.body.classList.remove('light-theme');
+    } else {
+      document.body.classList.add('light-theme');
+      document.body.classList.remove('dark-theme');
+    }
+  }, [darkMode]);
   
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -560,10 +573,9 @@ function App() {
   
   const messagesEndRef = useRef(null);
   const searchInputRef = useRef(null);
-  const recvSound = useRef(new Audio('https://cdn.pixabay.com/audio/2022/10/16/audio_024b896b01.mp3')); // Crystal Ding
-
-  const sentSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3'));
-  const ringSound = useRef(new Audio('https://cdn.pixabay.com/audio/2024/02/09/audio_66723f5451.mp3')); // Premium Ringtone
+  const recvSound = useRef(new Audio('https://upload.wikimedia.org/wikipedia/commons/1/15/Bicycle_bell.wav'));
+  const sentSound = useRef(new Audio('https://upload.wikimedia.org/wikipedia/commons/5/55/Bloop.ogg'));
+  const ringSound = useRef(new Audio('https://upload.wikimedia.org/wikipedia/commons/c/c6/Telephone_ringing.ogg'));
 
 
   useEffect(() => {
@@ -704,6 +716,20 @@ function App() {
         if (data.type === 'messages-seen') {
           setMessages(prev => prev.map(m => m.from === user.id ? { ...m, seen: true } : m));
         }
+        if (data.type === 'typing') {
+          setTypingUsers(prev => {
+            const next = new Set(prev);
+            next.add(data.userId);
+            return next;
+          });
+          setTimeout(() => {
+            setTypingUsers(prev => {
+              const next = new Set(prev);
+              next.delete(data.userId);
+              return next;
+            });
+          }, 3000);
+        }
         // Signaling
         if (data.type === 'call-request') setIncomingCall(data);
         if (data.type === 'call-end' || data.type === 'call-decline') { 
@@ -745,6 +771,12 @@ function App() {
 
         if (data.type === 'answer' && wsRef.current._pc) {
           await wsRef.current._pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          if (wsRef.current._iceBuffer) {
+            for (let c of wsRef.current._iceBuffer) {
+              await wsRef.current._pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+            }
+            wsRef.current._iceBuffer = [];
+          }
         }
 
         if (data.type === 'ice-candidate') {
@@ -897,6 +929,7 @@ function App() {
             <span style={{ fontWeight: 600 }}>{user.displayName}</span>
           </div>
           <div className="sidebar-top-actions">
+            <button className="icon-btn" onClick={() => setDarkMode(!darkMode)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
             <button className="icon-btn" onClick={() => setShowSettings(true)}><Settings size={18} /></button>
             <button className="icon-btn" onClick={logout}><LogOut size={18} /></button>
           </div>
@@ -953,12 +986,22 @@ function App() {
               <div className="chat-header-left">
                 <button className="icon-btn" onClick={() => setView('list')} style={{ marginRight: 8 }}><ChevronLeft size={24} /></button>
                 <div className="avatar-img" style={{ width: 40, height: 40, backgroundImage: `url(${activePeer.avatar})`, backgroundColor: colorFor(activePeer.displayName) }}>{!activePeer.avatar && getInitial(activePeer.displayName)}</div>
-                <div><div className="chat-header-name">{activePeer.displayName}</div><div className="chat-header-status">{onlineUsers.has(activePeer.id) ? 'Online' : 'Offline'}</div></div>
+                <div>
+                  <div className="chat-header-name">{activePeer.displayName}</div>
+                  <div className="chat-header-status">
+                    {typingUsers.has(activePeer.id) ? <span style={{color: 'var(--primary)'}}>Typing...</span> : onlineUsers.has(activePeer.id) ? 'Online' : 'Offline'}
+                  </div>
+                </div>
               </div>
               <div className="chat-header-actions">
                 <button className="icon-btn green" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-request', to: activePeer.id, callerInfo: { id: user.id, displayName: user.displayName, avatar: user.avatar }, callType: 'audio' })); setActiveCall({ peer: activePeer, callType: 'audio', isIncoming: false }); }}><Phone size={18} /></button>
                 <button className="icon-btn green" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-request', to: activePeer.id, callerInfo: { id: user.id, displayName: user.displayName, avatar: user.avatar }, callType: 'video' })); setActiveCall({ peer: activePeer, callType: 'video', isIncoming: false }); }}><Video size={18} /></button>
-                <button className="icon-btn" onClick={() => { wsRef.current.send(JSON.stringify({ type: 'call-request', to: activePeer.id, callerInfo: { id: user.id, displayName: user.displayName, avatar: user.avatar }, callType: 'video' })); setActiveCall({ peer: activePeer, callType: 'video', isIncoming: false }); }}><Monitor size={18} /></button>
+                <button className="icon-btn" title="Clear Chat" onClick={async () => {
+                  if (window.confirm('Clear all messages with this user?')) {
+                    await fetch(`${API}/api/messages/${user.id}/${activePeer.id}`, { method: 'DELETE' });
+                    setMessages([]);
+                  }
+                }}><Trash2 size={18} /></button>
               </div>
             </div>
             <div className="messages-scroll">
@@ -977,7 +1020,7 @@ function App() {
                     }}
                   >
                     {m.image && <img src={m.image} alt="Upload" className="msg-img" style={{ maxWidth: '100%', borderRadius: 8, marginBottom: 4, display: 'block' }} />}
-                    {m.text}
+                    <span onDoubleClick={() => navigator.clipboard.writeText(m.text)} style={{ cursor: 'text' }}>{m.text}</span>
                     <div className="msg-meta">
 
                       {timeStr(m.timestamp)}
@@ -999,8 +1042,16 @@ function App() {
               </button>
               <input type="file" id="chat-file" hidden accept="image/*" onChange={handleUpload} />
               
-              <div className="msg-input-wrap">
-                <textarea placeholder="Message" value={msgInput} rows={1} onChange={e => setMsgInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (msgInput.trim()) send(); } }} />
+              <div className="msg-input-wrap" style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: 4 }}>
+                <div className="quick-emojis" style={{ display: 'flex', gap: 12, padding: '4px 8px 0', fontSize: 18, userSelect: 'none' }}>
+                  {['👍', '❤️', '😂', '😮', '😢', '😡'].map(emoji => (
+                    <span key={emoji} style={{ cursor: 'pointer', transition: 'transform 0.1s' }} onMouseDown={e => { e.preventDefault(); setMsgInput(prev => prev + emoji); }}>{emoji}</span>
+                  ))}
+                </div>
+                <textarea placeholder="Message" value={msgInput} rows={1} style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color: 'var(--text)', resize: 'none', padding: '0 8px', fontSize: 15 }} onChange={e => {
+                  setMsgInput(e.target.value);
+                  wsRef.current?.send(JSON.stringify({ type: 'typing', to: activePeer.id, userId: user.id }));
+                }} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (msgInput.trim()) send(); } }} />
               </div>
               <button type="submit" className="send-btn" disabled={!msgInput.trim()}><Send size={20} /></button>
             </form>

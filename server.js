@@ -124,6 +124,7 @@ app.get('/api/users/search', (req, res) => {
   const db = loadDB();
   const results = db.users
     .filter(u => u.id !== myId && u.username.toLowerCase().includes(q.toLowerCase()))
+    // eslint-disable-next-line no-unused-vars
     .map(({ password, ...u }) => u);
   res.json(results);
 });
@@ -179,6 +180,17 @@ app.get('/api/messages/:userId/:otherId', (req, res) => {
     (m.from === otherId && m.to === userId)
   );
   res.json(msgs);
+});
+
+app.delete('/api/messages/:userId/:otherId', (req, res) => {
+  const { userId, otherId } = req.params;
+  const db = loadDB();
+  db.messages = db.messages.filter(m => !(
+    (m.from === userId && m.to === otherId) ||
+    (m.from === otherId && m.to === userId)
+  ));
+  saveDB(db);
+  res.json({ success: true });
 });
 
 // ─── WebSocket: Real-time Chat + WebRTC Signaling ────────────────────────────
@@ -270,6 +282,10 @@ wss.on('connection', (ws) => {
         broadcast(msg.to, { type: 'message-deleted', msgId: data.msgId });
         broadcast(msg.from, { type: 'message-deleted', msgId: data.msgId });
       }
+    }
+
+    if (data.type === 'typing') {
+      broadcast(data.to, { type: 'typing', userId: data.userId });
     }
 
     if (data.type === 'call-request') {
