@@ -301,10 +301,21 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming }) {
 
   const init = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: callType === 'video' ? { facingMode: 'user' } : false,
-        audio: { echoCancellation: true, noiseSuppression: true }
-      });
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: callType === 'video' ? { facingMode: 'user' } : false,
+          audio: { echoCancellation: true, noiseSuppression: true }
+        });
+      } catch (e) {
+        console.warn('Initial media access failed, trying audio-only fallback...', e);
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e2) {
+          console.warn('Audio fallback failed, creating empty stream...', e2);
+          stream = new MediaStream();
+        }
+      }
       localStreamRef.current = stream;
       if (localRef.current) localRef.current.srcObject = stream;
 
@@ -376,9 +387,8 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming }) {
       // If we are the one who accepted, we just wait for offer
       // If we are the one who started, we Wait for 'call-accept' before sending offer
     } catch (err) { 
-      console.error('Media Error:', err); 
-      alert('Could not access camera or microphone. Please check browser permissions and ensure you are using HTTPS.');
-      end();
+      console.error('Final Media Access Error:', err); 
+      // Removed blocking alert as requested. 
     }
   };
 
