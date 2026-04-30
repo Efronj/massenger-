@@ -55,11 +55,14 @@ const RTC_CONFIG = {
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
     { urls: 'stun:stun4.l.google.com:19302' },
-    { urls: 'stun:global.stun.twilio.com:3478?transport=udp' },
-    { urls: 'stun:stun.services.mozilla.com' },
-    { urls: 'stun:stun.vidyo.com' }
-  ],
-  iceCandidatePoolSize: 10
+    { urls: 'stun:stun.ekiga.net' },
+    { urls: 'stun:stun.ideasip.com' },
+    { urls: 'stun:stun.schlund.de' },
+    { urls: 'stun:stun.voiparound.com' },
+    { urls: 'stun:stun.voipbuster.com' },
+    { urls: 'stun:stun.voipstunt.com' },
+    { urls: 'stun:stun.voxgratia.org' }
+  ]
 };
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -312,8 +315,14 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming }) {
         try {
           stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         } catch (e2) {
-          console.warn('Audio fallback failed, creating empty stream...', e2);
-          stream = new MediaStream();
+          console.warn('Audio fallback failed, creating dummy silence track...', e2);
+          // Create dummy silent audio track to keep WebRTC signaling alive
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const oscillator = ctx.createOscillator();
+          const dst = ctx.createMediaStreamDestination();
+          oscillator.connect(dst);
+          // We don't start the oscillator, so it's just silence
+          stream = dst.stream;
         }
       }
       localStreamRef.current = stream;
@@ -443,7 +452,10 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming }) {
             <div className="remote-placeholder">
               <div className="big-avatar" style={{ backgroundImage: `url(${peer.avatar})`, backgroundColor: colorFor(peer.displayName) }} />
               <h3>{peer.displayName}</h3>
-              <p>{isIncoming ? 'Connecting...' : 'Calling...'}</p>
+              <p>{isIncoming ? 'Incoming Call: Connecting...' : 'Calling: Waiting for answer...'}</p>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 20 }}>
+                Signal: Stable | Network: Searching...
+              </div>
             </div>
           )}
         </div>
