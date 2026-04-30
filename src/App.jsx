@@ -341,10 +341,11 @@ function CallOverlay({ peer, wsRef, callType, onEnd, isIncoming }) {
       };
 
       pc.ontrack = (e) => {
-        if (remoteRef.current && e.streams[0]) {
-          remoteRef.current.srcObject = e.streams[0];
+        const remoteStream = e.streams[0] || new MediaStream([e.track]);
+        if (remoteRef.current) {
+          remoteRef.current.srcObject = remoteStream;
           setConnected(true);
-          remoteRef.current.play().catch(() => {});
+          remoteRef.current.play().catch(err => console.warn('Remote video/audio play blocked:', err));
         }
       };
 
@@ -900,6 +901,10 @@ function App() {
       ringSound.current.pause();
       ringSound.current.currentTime = 0;
     }
+    return () => {
+      ringSound.current.pause();
+      ringSound.current.currentTime = 0;
+    };
   }, [incomingCall]);
 
 
