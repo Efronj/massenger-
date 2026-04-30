@@ -289,6 +289,9 @@ wss.on('connection', (ws) => {
     }
 
     if (data.type === 'call-request') {
+      const db = loadDB();
+      const sender = db.users.find(u => u.id === myUserId);
+      
       broadcast(data.to, { 
         type: 'call-request', 
         from: myUserId, 
@@ -296,11 +299,11 @@ wss.on('connection', (ws) => {
         callType: data.callType 
       });
       
-      if (!clients.has(data.to)) {
-
+      // Always send push for calls to ensure user sees it even if tab is in background
+      if (sender) {
         sendPush(data.to, {
           title: `Incoming ${data.callType} call`,
-          body: `${data.callerInfo.displayName} is calling you...`,
+          body: `${sender.displayName} is calling you...`,
           url: '/'
         });
       }
